@@ -12,6 +12,7 @@ stepInstall() {
         echo -ne "$(tput sgr0)"
         exit $resCompile
     fi
+    # idf.py add-dependency espressif/tinyusb
     echo "$(tput setaf 10)Step 0: Successfully prepared.$(tput sgr0)"
 }
 
@@ -48,7 +49,7 @@ step1() {
 
 step2() {
     echo "$(tput setaf 6)Step 2: Compiling...$(tput sgr0)"
-    #
+    idf.py build
     resCompile=$?
     if [[ $resCompile != 0 ]]; then
         echo -ne "$(tput setaf 9)$(tput bold)FAILED at STEP 2:\n$(tput sgr0)$(tput setaf 9)"
@@ -58,6 +59,42 @@ step2() {
     fi
     echo "$(tput setaf 10)Step 2: Successfully compiled!$(tput sgr0)"
 }
+
+
+step3() {
+    echo "$(tput setaf 6)Step 3: Preparing upload...$(tput sgr0)"
+    ls /dev/ttyACM* 2>/dev/null
+    resCompile=$?
+    if [[ $resCompile != 0 ]]; then
+        echo -ne "$(tput setaf 9)$(tput bold)FAILED at STEP 3:\n$(tput sgr0)$(tput setaf 9)"
+        echo "Error while compiling !"
+        echo -ne "$(tput sgr0)"
+        exit $resCompile
+    fi
+    # ls /dev/ttyACM* 2>/dev/null
+    # resCompile=$?
+    # if [[ $resCompile != 0 ]]; then
+    #     echo -ne "$(tput setaf 9)$(tput bold)FAILED at STEP 3:\n$(tput sgr0)$(tput setaf 9)"
+    #     echo "Error while compiling !"
+    #     echo -ne "$(tput sgr0)"
+    #     exit $resCompile
+    # fi
+    echo "$(tput setaf 10)Step 3: Successfully prepared upload!$(tput sgr0)"
+}
+
+step4() {
+    echo "$(tput setaf 6)Step 4: Uploading...$(tput sgr0)"
+    idf.py -p /dev/ttyACM0 flash
+    resCompile=$?
+    if [[ $resCompile != 0 ]]; then
+        echo -ne "$(tput setaf 9)$(tput bold)FAILED at STEP 4:\n$(tput sgr0)$(tput setaf 9)"
+        echo "Error while uploading !"
+        echo -ne "$(tput sgr0)"
+        exit $resCompile
+    fi
+    echo "$(tput setaf 10)Step 4: Successfully uploaded!$(tput sgr0)"
+}
+
 
 stepi() {
     case $1 in
@@ -73,6 +110,14 @@ stepi() {
         step2
         ;;
 
+    3)
+        step3
+        ;;
+
+    4)
+        step4
+        ;;
+
     install)
         stepInstall
         ;;
@@ -80,6 +125,8 @@ stepi() {
     compile)
         step1
         step2
+        step3
+        step4
         ;;
 
     *)
@@ -92,7 +139,7 @@ stepi() {
 }
 
 allSteps() {
-    for i in $(seq 0 1); do
+    for i in $(seq 0 4); do
         stepi $i
     done
 }
