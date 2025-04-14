@@ -71,14 +71,14 @@ step3() {
         echo -ne "$(tput sgr0)"
         exit $resCompile
     fi
-    # ls /dev/ttyACM* 2>/dev/null
-    # resCompile=$?
-    # if [[ $resCompile != 0 ]]; then
-    #     echo -ne "$(tput setaf 9)$(tput bold)FAILED at STEP 3:\n$(tput sgr0)$(tput setaf 9)"
-    #     echo "Error while compiling !"
-    #     echo -ne "$(tput sgr0)"
-    #     exit $resCompile
-    # fi
+    sudo chmod a+rw /dev/ttyACM0
+    resCompile=$?
+    if [[ $resCompile != 0 ]]; then
+        echo -ne "$(tput setaf 9)$(tput bold)FAILED at STEP 3:\n$(tput sgr0)$(tput setaf 9)"
+        echo "Error while compiling !"
+        echo -ne "$(tput sgr0)"
+        exit $resCompile
+    fi
     echo "$(tput setaf 10)Step 3: Successfully prepared upload!$(tput sgr0)"
 }
 

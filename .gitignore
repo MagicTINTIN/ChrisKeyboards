@@ -4,3 +4,4 @@ sdkconfig.old
 .untracked/
 managed_components
 *.lock
+answer.md
