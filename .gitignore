@@ -1,2 +1,6 @@
 build/
 sdkconfig
+sdkconfig.old
+.untracked/
+managed_components
+*.lock
