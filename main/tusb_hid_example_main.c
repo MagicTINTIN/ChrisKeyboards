@@ -36,8 +36,8 @@ const uint8_t hid_report_descriptor[] = {
 const char* hid_string_descriptor[5] = {
     // array of pointer to string descriptors
     (char[]){0x09, 0x04},  // 0: is supported language is English (0x0409)
-    "TinyUSB",             // 1: Manufacturer
-    "TinyUSB Device",      // 2: Product
+    "MagicTINTIN",             // 1: Manufacturer
+    "ChrisT1 Clavier",      // 2: Product
     "123456",              // 3: Serials, should use chip ID
     "Example HID interface",  // 4: HID
 };
@@ -134,7 +134,7 @@ static void app_send_hid_demo(void)
 {
     // Keyboard output: Send key 'a/A' pressed and released
     ESP_LOGI(TAG, "Sending Keyboard report");
-    uint8_t keycode[6] = {HID_KEY_A};
+    uint8_t keycode[6] = {HID_KEY_BACKSPACE, 0, 0, 0, 0, 0};
     tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, keycode);
     vTaskDelay(pdMS_TO_TICKS(50));
     tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, NULL);
