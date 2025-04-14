@@ -1,0 +1,11 @@
+{
+    "idf.pythonInstallPath": "/usr/bin/python",
+    "files.associations": {
+        "h_hostfile": "plaintext",
+        "stdlib.h": "c",
+        "tinyusb.h": "c",
+        "tusb.h": "c",
+        "osal.h": "c",
+        "hid_device.h": "c"
+    }
+}

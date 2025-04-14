@@ -1,0 +1,28 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "~/esp-idf/**",
+                "${config:idf.espIdfPath}/components/**",
+                "${config:idf.espIdfPathWin}/components/**",
+                "${workspaceFolder}/managed_components/espressif__esp_tinyusb/include",
+                "/home/user/esp-idf/components/freertos/FreeRTOS-Kernel/include/freertos",
+                "${workspaceFolder}/managed_components/espressif__tinyusb/examples/device/audio_4_channel_mic_freertos/src/FreeRTOSConfig",
+                "${workspaceFolder}/managed_components/espressif__tinyusb/hw",
+                "/home/user/esp-idf/components/freertos/FreeRTOS-Kernel-SMP/portable/linux/include/freertos",
+                "/home/user/esp-idf/components/esp_hw_support/include",
+                "/home/user/esp-idf/components/soc/esp32s3/include",
+                "/home/user/esp-idf/components/riscv/include",
+                "/home/user/esp-idf/components/soc/esp32s3/register"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-clang-x64"
+        }
+    ],
+    "version": 4
+}
