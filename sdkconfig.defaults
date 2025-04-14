@@ -1,5 +1,4 @@
-CONFIG_USB_DEVICE_ENABLED=y
-CONFIG_USB_DEVICE_HID_ENABLED=y
-CONFIG_USB_CDC_SUPPORTED=n
-CONFIG_USB_DEVICE_VPORT_SUPPORT=y
-CONFIG_USB_OTG_SUPPORTED=y
+# This file was generated using idf.py save-defconfig. It can be edited manually.
+# Espressif IoT Development Framework (ESP-IDF) Project Minimal Configuration
+#
+CONFIG_TINYUSB_HID_COUNT=1
