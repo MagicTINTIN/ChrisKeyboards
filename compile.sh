@@ -95,6 +95,19 @@ step4() {
     echo "$(tput setaf 10)Step 4: Successfully uploaded!$(tput sgr0)"
 }
 
+stepDebug() {
+    echo "$(tput setaf 6)Step 4bis: Upload & monitor...$(tput sgr0)"
+    idf.py -p /dev/ttyACM0 flash monitor
+    resCompile=$?
+    if [[ $resCompile != 0 ]]; then
+        echo -ne "$(tput setaf 9)$(tput bold)FAILED at STEP 4bis:\n$(tput sgr0)$(tput setaf 9)"
+        echo "Error while uploading/monitoring !"
+        echo -ne "$(tput sgr0)"
+        exit $resCompile
+    fi
+    echo "$(tput setaf 10)Step 4bis: Successfully uploaded and monitored!$(tput sgr0)"
+}
+
 
 stepi() {
     case $1 in
@@ -122,12 +135,21 @@ stepi() {
         stepInstall
         ;;
 
-    compile)
+    confandcompile)
         step1
         step2
         step3
         step4
         ;;
+
+    compile)
+        step2
+        step3
+        step4
+        ;;
+
+    debug)
+        stepDebug;;
 
     *)
         echo -ne "$(tput setaf 9)$(tput bold)"
