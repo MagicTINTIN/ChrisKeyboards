@@ -151,6 +151,11 @@ stepi() {
     debug)
         stepDebug;;
 
+    compd)
+        step2
+        step3
+        stepDebug;;
+
     *)
         echo -ne "$(tput setaf 9)$(tput bold)"
         echo "Invalid step $1"

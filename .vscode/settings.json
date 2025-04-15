@@ -6,6 +6,13 @@
         "tinyusb.h": "c",
         "tusb.h": "c",
         "osal.h": "c",
-        "hid_device.h": "c"
-    }
+        "hid_device.h": "c",
+        "esp_log.h": "c",
+        "freertos.h": "c",
+        "task.h": "c"
+    },
+    "cSpell.words": [
+        "LOGI"
+    ],
+    "idf.port": "/dev/ttyACM0"
 }

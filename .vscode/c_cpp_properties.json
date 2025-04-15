@@ -15,7 +15,8 @@
                 "/home/user/esp-idf/components/esp_hw_support/include",
                 "/home/user/esp-idf/components/soc/esp32s3/include",
                 "/home/user/esp-idf/components/riscv/include",
-                "/home/user/esp-idf/components/soc/esp32s3/register"
+                "/home/user/esp-idf/components/soc/esp32s3/register",
+                "/home/user/esp-idf/components/log/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",
