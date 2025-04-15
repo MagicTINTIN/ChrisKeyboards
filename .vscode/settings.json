@@ -9,10 +9,12 @@
         "hid_device.h": "c",
         "esp_log.h": "c",
         "freertos.h": "c",
-        "task.h": "c"
+        "task.h": "c",
+        "cstdlib": "cpp"
     },
-    "cSpell.words": [
-        "LOGI"
-    ],
-    "idf.port": "/dev/ttyACM0"
+    "idf.port": "/dev/ttyACM0",
+    "C_Cpp.errorSquiggles": "enabled",
+    // "C_Cpp.default.compilerPath": "/usr/bin/g++",
+    // "intelliSenseMode": "gcc-x64",
+    // "C_Cpp.default.intelliSenseMode": "gcc-x64"
 }

@@ -34,7 +34,7 @@ const uint8_t hid_report_descriptor[] = {
  */
 const char *hid_string_descriptor[5] = {
     // array of pointer to string descriptors
-    (char[]){0x09, 0x04},    // 0: is supported language is English (0x0409)
+    (char[]){0x0c, 0x04},    // 0: is supported language is French, for English (0x0409)
     "MagicTINTIN",           // 1: Manufacturer
     "ChrisT1 Clavier",       // 2: Product
     "123456",                // 3: Serials, should use chip ID
@@ -143,9 +143,25 @@ static void app_send_hid_demo(void)
 {
     // Keyboard output: Send key 'a/A' pressed and released
     ESP_LOGI(TAG, "Sending Keyboard report");
-    uint8_t keycode[6] = {HID_KEY_A, 0, 0, 0, 0, 0};
-    for (size_t i = 0; i < 5; i++)
+    uint8_t keycode[6] = {0x10, 0, 0, 0, 0, 0};
+    for (unsigned char i = 0; i < 4; i++)
     {
+        tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, keycode);
+        vTaskDelay(pdMS_TO_TICKS(50));
+        tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, NULL);
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+    uint8_t keycode2[6] = {0x10, 0, 0, 0, 0, 0};
+    for (unsigned char i = 0; i < 4; i++)
+    {
+        tud_hid_keyboard_report(0, 0, keycode2);
+        vTaskDelay(pdMS_TO_TICKS(50));
+        tud_hid_keyboard_report(0, 0, NULL);
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+    for (unsigned char i = 4; i < 0; i++)
+    {
+        uint8_t keycode[6] = {i, 0, 0, 0, 0, 0}; // HID_KEY_A
         tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, keycode);
         vTaskDelay(pdMS_TO_TICKS(50));
         tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, NULL);
@@ -171,7 +187,7 @@ extern "C" void app_main(void)
     const gpio_config_t boot_button_config = {
         .pin_bit_mask = BIT64(APP_BUTTON),
         .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_ENABLE, // true,
+        .pull_up_en = GPIO_PULLUP_ENABLE,      // true,
         .pull_down_en = GPIO_PULLDOWN_DISABLE, // false,
         .intr_type = GPIO_INTR_DISABLE,
     };

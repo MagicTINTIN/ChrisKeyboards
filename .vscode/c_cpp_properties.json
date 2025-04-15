@@ -18,8 +18,10 @@
                 "/home/user/esp-idf/components/soc/esp32s3/register",
                 "/home/user/esp-idf/components/log/include"
             ],
-            "defines": [],
-            "compilerPath": "/usr/bin/clang",
+            "defines": [
+                "TUD_OPT_HIGH_SPEED=0"
+            ],
+            // "compilerPath": "/usr/bin/g++",
             "cStandard": "c17",
             "cppStandard": "c++17",
             "intelliSenseMode": "linux-clang-x64"

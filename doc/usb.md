@@ -1,0 +1,1 @@
+[https://beyondlogic.org/usbnutshell/usb5.shtml](https://beyondlogic.org/usbnutshell/usb5.shtml)
