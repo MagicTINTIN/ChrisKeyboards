@@ -153,7 +153,22 @@ static void app_send_hid_demo(void)
     }
     for (unsigned char i = 4; i < 0; i++)
     {
-        uint8_t keycode[6] = {i, 0, 0, 0, 0, 0}; // HID_KEY_A
+        uint8_t keycode[6] = {HID_KEY_EUROPE_1, 0, 0, 0, 0, 0}; // HID_KEY_A
+        tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, keycode);
+        vTaskDelay(pdMS_TO_TICKS(50));
+        tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, NULL);
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+    for (unsigned char i = 0; i < 4; i++)
+    {
+        uint8_t keycode[6] = {HID_KEY_B, HID_KEY_C, HID_KEY_D, HID_KEY_E, 0, 0}; // HID_KEY_A
+        tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, keycode);
+        vTaskDelay(pdMS_TO_TICKS(50));
+        tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, NULL);
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+    for (unsigned char i = 0; i < 4; i++)
+    {
         tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, keycode);
         vTaskDelay(pdMS_TO_TICKS(50));
         tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, NULL);
@@ -174,89 +189,89 @@ static void app_send_hid_demo(void)
 }
 
 // TUD
-// extern "C" void app_main(void)
-// {
-//     // Initialize button that will trigger HID reports
-//     const gpio_config_t boot_button_config = {
-//         .pin_bit_mask = BIT64(APP_BUTTON),
-//         .mode = GPIO_MODE_INPUT,
-//         .pull_up_en = GPIO_PULLUP_ENABLE,      // true,
-//         .pull_down_en = GPIO_PULLDOWN_DISABLE, // false,
-//         .intr_type = GPIO_INTR_DISABLE,
-//     };
-//     ESP_ERROR_CHECK(gpio_config(&boot_button_config));
-
-//     ESP_LOGI(TAG, "USB initialization");
-//     const tinyusb_config_t tusb_cfg = {
-//         .device_descriptor = NULL,
-//         .string_descriptor = hid_string_descriptor,
-//         .string_descriptor_count = sizeof(hid_string_descriptor) / sizeof(hid_string_descriptor[0]),
-//         .external_phy = false,
-// #if (TUD_OPT_HIGH_SPEED)
-//         .fs_configuration_descriptor = hid_configuration_descriptor, // HID configuration descriptor for full-speed and high-speed are the same
-//         .hs_configuration_descriptor = hid_configuration_descriptor,
-//         .qualifier_descriptor = NULL,
-// #else
-//         .configuration_descriptor = hid_configuration_descriptor,
-// #endif // TUD_OPT_HIGH_SPEED
-//     };
-
-//     ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
-//     ESP_LOGI(TAG, "USB initialization DONE");
-
-//     while (1)
-//     {
-//         // if (tud_task_event_ready())
-//         //     tud_task();
-//         if (tud_mounted())
-//         {
-//             static bool send_hid_data = true;
-//             if (send_hid_data)
-//             {
-//                 app_send_hid_demo();
-//             }
-//             send_hid_data = !gpio_get_level(APP_BUTTON);
-//         }
-//         vTaskDelay(pdMS_TO_TICKS(100));
-//     }
-// }
-
 extern "C" void app_main(void)
 {
-    const char *TAG = "GPIO_MONITOR";
+    // Initialize button that will trigger HID reports
+    const gpio_config_t boot_button_config = {
+        .pin_bit_mask = BIT64(APP_BUTTON),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,      // true,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE, // false,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    ESP_ERROR_CHECK(gpio_config(&boot_button_config));
 
-    // Configure GPIOs 1 to 13 as input
-    for (gpio_num_t gpio = GPIO_NUM_4; gpio <= GPIO_NUM_11; gpio = (gpio_num_t)(gpio + 1))
-    {
-        gpio_config_t io_conf = {
-            .pin_bit_mask = 1ULL << gpio,
-            .mode = GPIO_MODE_INPUT,
-            .pull_up_en = GPIO_PULLUP_DISABLE,
-            .pull_down_en = GPIO_PULLDOWN_DISABLE,
-            .intr_type = GPIO_INTR_DISABLE,
-        };
-        gpio_config(&io_conf);
-    }
+    ESP_LOGI(TAG, "USB initialization");
+    const tinyusb_config_t tusb_cfg = {
+        .device_descriptor = NULL,
+        .string_descriptor = hid_string_descriptor,
+        .string_descriptor_count = sizeof(hid_string_descriptor) / sizeof(hid_string_descriptor[0]),
+        .external_phy = false,
+#if (TUD_OPT_HIGH_SPEED)
+        .fs_configuration_descriptor = hid_configuration_descriptor, // HID configuration descriptor for full-speed and high-speed are the same
+        .hs_configuration_descriptor = hid_configuration_descriptor,
+        .qualifier_descriptor = NULL,
+#else
+        .configuration_descriptor = hid_configuration_descriptor,
+#endif // TUD_OPT_HIGH_SPEED
+    };
 
-    // Monitor loop
-    int arr[100][8];
-    while (true)
+    ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
+    ESP_LOGI(TAG, "USB initialization DONE");
+
+    while (1)
     {
-        for (int i = 0; i < 100; i++)
+        // if (tud_task_event_ready())
+        //     tud_task();
+        if (tud_mounted())
         {
-            for (gpio_num_t gpio = GPIO_NUM_4; gpio <= GPIO_NUM_11; gpio = (gpio_num_t)(gpio + 1))
+            static bool send_hid_data = true;
+            if (send_hid_data)
             {
-                int level = gpio_get_level(gpio);
-                arr[i][gpio - GPIO_NUM_4] = level;
-                // vTaskDelay(pdMS_TO_TICKS(1));
-                esp_rom_delay_us(100);
+                app_send_hid_demo();
             }
+            send_hid_data = !gpio_get_level(APP_BUTTON);
         }
-        for (int i = 0; i < 100; i++)
-        {
-            printf("%04d,%d,%d,%d,%d,%d,%d,%d,%d\n", i, arr[i][0], arr[i][1], arr[i][2], arr[i][3], arr[i][4], arr[i][5], arr[i][6], arr[i][7]);
-        }
-        vTaskDelay(pdMS_TO_TICKS(1)); // delay 5 milliseconds
-        // vTaskDelay(pdMS_TO_TICKS(1));  // delay 5 milliseconds
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
+
+// extern "C" void app_main(void)
+// {
+//     const char *TAG = "GPIO_MONITOR";
+
+//     // Configure GPIOs 1 to 13 as input
+//     for (gpio_num_t gpio = GPIO_NUM_4; gpio <= GPIO_NUM_11; gpio = (gpio_num_t)(gpio + 1))
+//     {
+//         gpio_config_t io_conf = {
+//             .pin_bit_mask = 1ULL << gpio,
+//             .mode = GPIO_MODE_INPUT,
+//             .pull_up_en = GPIO_PULLUP_DISABLE,
+//             .pull_down_en = GPIO_PULLDOWN_DISABLE,
+//             .intr_type = GPIO_INTR_DISABLE,
+//         };
+//         gpio_config(&io_conf);
+//     }
+
+//     // Monitor loop
+//     int arr[100][8];
+//     while (true)
+//     {
+//         for (int i = 0; i < 100; i++)
+//         {
+//             for (gpio_num_t gpio = GPIO_NUM_4; gpio <= GPIO_NUM_11; gpio = (gpio_num_t)(gpio + 1))
+//             {
+//                 int level = gpio_get_level(gpio);
+//                 arr[i][gpio - GPIO_NUM_4] = level;
+//                 // vTaskDelay(pdMS_TO_TICKS(1));
+//                 esp_rom_delay_us(100);
+//             }
+//         }
+//         for (int i = 0; i < 100; i++)
+//         {
+//             printf("%04d,%d,%d,%d,%d,%d,%d,%d,%d\n", i, arr[i][0], arr[i][1], arr[i][2], arr[i][3], arr[i][4], arr[i][5], arr[i][6], arr[i][7]);
+//         }
+//         vTaskDelay(pdMS_TO_TICKS(1)); // delay 5 milliseconds
+//         // vTaskDelay(pdMS_TO_TICKS(1));  // delay 5 milliseconds
+//     }
+// }
