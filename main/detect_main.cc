@@ -11,6 +11,8 @@
 #include "tinyusb.h"
 #include "class/hid/hid_device.h"
 #include "driver/gpio.h"
+#include <vector>
+#include <string>
 
 #define APP_BUTTON (GPIO_NUM_0) // Use BOOT signal by default
 static const char *TAG = "example";
@@ -173,53 +175,17 @@ static void app_send_hid_demo(void)
     // }
 }
 
-// TUD
-// extern "C" void app_main(void)
-// {
-//     // Initialize button that will trigger HID reports
-//     const gpio_config_t boot_button_config = {
-//         .pin_bit_mask = BIT64(APP_BUTTON),
-//         .mode = GPIO_MODE_INPUT,
-//         .pull_up_en = GPIO_PULLUP_ENABLE,      // true,
-//         .pull_down_en = GPIO_PULLDOWN_DISABLE, // false,
-//         .intr_type = GPIO_INTR_DISABLE,
-//     };
-//     ESP_ERROR_CHECK(gpio_config(&boot_button_config));
-
-//     ESP_LOGI(TAG, "USB initialization");
-//     const tinyusb_config_t tusb_cfg = {
-//         .device_descriptor = NULL,
-//         .string_descriptor = hid_string_descriptor,
-//         .string_descriptor_count = sizeof(hid_string_descriptor) / sizeof(hid_string_descriptor[0]),
-//         .external_phy = false,
-// #if (TUD_OPT_HIGH_SPEED)
-//         .fs_configuration_descriptor = hid_configuration_descriptor, // HID configuration descriptor for full-speed and high-speed are the same
-//         .hs_configuration_descriptor = hid_configuration_descriptor,
-//         .qualifier_descriptor = NULL,
-// #else
-//         .configuration_descriptor = hid_configuration_descriptor,
-// #endif // TUD_OPT_HIGH_SPEED
-//     };
-
-//     ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
-//     ESP_LOGI(TAG, "USB initialization DONE");
-
-//     while (1)
-//     {
-//         // if (tud_task_event_ready())
-//         //     tud_task();
-//         if (tud_mounted())
-//         {
-//             static bool send_hid_data = true;
-//             if (send_hid_data)
-//             {
-//                 app_send_hid_demo();
-//             }
-//             send_hid_data = !gpio_get_level(APP_BUTTON);
-//         }
-//         vTaskDelay(pdMS_TO_TICKS(100));
-//     }
-// }
+std::string paddString(std::string input, unsigned char size, bool notFinal)
+{
+    std::string s = "";
+    for (char i = 0; i < size - input.size(); i++)
+    {
+        s += " ";
+    }
+    if (notFinal)
+        return s + input.substr(8);
+    return s + input;
+}
 
 extern "C" void app_main(void)
 {
@@ -318,10 +284,12 @@ extern "C" void app_main(void)
     };
     gpio_config(&skip);
 
-    int val = 0;
-
     ESP_LOGI(TAG, "> back/skip buttons configured");
     vTaskDelay(pdMS_TO_TICKS(20));
+
+    std::vector<std::string> keys = {"HID_KEY_UNDEF", "HID_KEY_A", "HID_KEY_B", "HID_KEY_C", "HID_KEY_D", "HID_KEY_E", "HID_KEY_F", "HID_KEY_G", "HID_KEY_H", "HID_KEY_I", "HID_KEY_J", "HID_KEY_K", "HID_KEY_L", "HID_KEY_M", "HID_KEY_N", "HID_KEY_O", "HID_KEY_P", "HID_KEY_Q", "HID_KEY_R", "HID_KEY_S", "HID_KEY_T", "HID_KEY_U", "HID_KEY_V", "HID_KEY_W", "HID_KEY_X", "HID_KEY_Y", "HID_KEY_Z", "HID_KEY_1", "HID_KEY_2", "HID_KEY_3", "HID_KEY_4", "HID_KEY_5", "HID_KEY_6", "HID_KEY_7", "HID_KEY_8", "HID_KEY_9", "HID_KEY_0", "HID_KEY_ENTER", "HID_KEY_ESCAPE", "HID_KEY_BACKSPACE", "HID_KEY_TAB", "HID_KEY_SPACE", "HID_KEY_MINUS", "HID_KEY_EQUAL", "HID_KEY_BRACKET_LEFT", "HID_KEY_BRACKET_RIGHT", "HID_KEY_BACKSLASH", "HID_KEY_EUROPE_1", "HID_KEY_SEMICOLON", "HID_KEY_APOSTROPHE", "HID_KEY_GRAVE", "HID_KEY_COMMA", "HID_KEY_PERIOD", "HID_KEY_SLASH", "HID_KEY_CAPS_LOCK", "HID_KEY_F1", "HID_KEY_F2", "HID_KEY_F3", "HID_KEY_F4", "HID_KEY_F5", "HID_KEY_F6", "HID_KEY_F7", "HID_KEY_F8", "HID_KEY_F9", "HID_KEY_F10", "HID_KEY_F11", "HID_KEY_F12", "HID_KEY_PRINT_SCREEN", "HID_KEY_SCROLL_LOCK", "HID_KEY_PAUSE", "HID_KEY_INSERT", "HID_KEY_HOME", "HID_KEY_PAGE_UP", "HID_KEY_DELETE", "HID_KEY_END", "HID_KEY_PAGE_DOWN", "HID_KEY_ARROW_RIGHT", "HID_KEY_ARROW_LEFT", "HID_KEY_ARROW_DOWN", "HID_KEY_ARROW_UP", "HID_KEY_NUM_LOCK", "HID_KEY_KEYPAD_DIVIDE", "HID_KEY_KEYPAD_MULTIPLY", "HID_KEY_KEYPAD_SUBTRACT", "HID_KEY_KEYPAD_ADD", "HID_KEY_KEYPAD_ENTER", "HID_KEY_KEYPAD_1", "HID_KEY_KEYPAD_2", "HID_KEY_KEYPAD_3", "HID_KEY_KEYPAD_4", "HID_KEY_KEYPAD_5", "HID_KEY_KEYPAD_6", "HID_KEY_KEYPAD_7", "HID_KEY_KEYPAD_8", "HID_KEY_KEYPAD_9", "HID_KEY_KEYPAD_0", "HID_KEY_KEYPAD_DECIMAL", "HID_KEY_CONTROL_LEFT", "HID_KEY_SHIFT_LEFT", "HID_KEY_ALT_LEFT", "HID_KEY_GUI_LEFT", "HID_KEY_CONTROL_RIGHT", "HID_KEY_SHIFT_RIGHT", "HID_KEY_ALT_RIGHT"};
+    std::vector<std::string> skippedKeys = {};
+    int matrix[num_cols][num_rows] = {0};
 
     printf("Successfully set up.\n");
 
@@ -330,6 +298,111 @@ extern "C" void app_main(void)
     // ESP_LOGI(TAG, "> Go to");
     // ESP_LOGI(TAG, "> MAT\n");
     // --- Matrix scan loop ---
+    for (unsigned int keyIndex = 1; keyIndex < keys.size();)
+    {
+        printf("Press the key '%s'\n-", keys.at(keyIndex).c_str());
+        fflush(stdout);
+        bool notFound = true;
+        while (notFound)
+        {
+            for (int col = 0; col < num_cols; ++col)
+            {
+                for (int i = 0; i < num_cols; ++i)
+                {
+                    gpio_set_level(cols[i], i == col ? 0 : 1);
+                }
+                esp_rom_delay_us(50);
+
+                for (int row = 0; row < num_rows; ++row)
+                {
+                    int val = gpio_get_level(rows[row]);
+                    if (val == 0)
+                    {
+                        // printf("Key pressed at [col=%d, row=%d]\n", col, row);
+                        if (matrix[col][row] == 0)
+                        {
+                            matrix[col][row] = keyIndex;
+                            printf("\r'%s' has been assigned to [%d,%d]\n\n", keys.at(keyIndex).c_str(), col, row);
+                            keyIndex++;
+                            notFound = false;
+                        }
+                        else
+                        {
+                            printf("\r%d,%d already assigned.", col, row);
+                            fflush(stdout);
+                        }
+                    }
+                }
+            }
+            if (!gpio_get_level(GPIO_NUM_2))
+            {
+                printf("back\n");
+                keyIndex--;
+                if (keyIndex < 1)
+                    keyIndex = 1;
+                for (unsigned c = 0; c < num_cols; c++)
+                    for (unsigned r = 1; r < num_rows; r++)
+                        if (matrix[c][r] == keyIndex)
+                            matrix[c][r] = 0;
+                notFound = false;
+            }
+            if (!gpio_get_level(GPIO_NUM_3))
+            {
+                printf("skip\n");
+                skippedKeys.push_back(keys.at(keyIndex));
+                keyIndex++;
+                notFound = false;
+            }
+
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+
+        printf("Current matrix:\n{\n");
+        for (unsigned c = 0; c < num_cols; c++)
+        {
+            printf("    {%s", paddString(keys.at(matrix[c][0]), 24, true).c_str());
+            for (unsigned r = 1; r < num_rows; r++)
+            {
+                printf(",%s", paddString(keys.at(matrix[c][r]), 24, true).c_str());
+            }
+            if (c == num_cols - 1)
+                printf("}\n");
+            else
+                printf("},\n");
+        }
+        printf("}\nSkipped keys:");
+
+        for (std::string s : skippedKeys)
+        {
+            printf(" %s", s.c_str());
+        }
+        printf("\n");
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+    printf("All keys have been registered into the matrix.\n");
+    printf("Current matrix:\n{\n");
+    for (unsigned c = 0; c < num_cols; c++)
+    {
+        printf("    {%s", paddString(keys.at(matrix[c][0]), 24, false).c_str());
+        for (unsigned r = 1; r < num_rows; r++)
+        {
+            printf(",%s", paddString(keys.at(matrix[c][r]), 24, false).c_str());
+        }
+        if (c == num_cols - 1)
+            printf("}\n");
+        else
+            printf("},\n");
+    }
+    printf("}\nSkipped keys:");
+
+    for (std::string s : skippedKeys)
+    {
+        printf(" %s", s.c_str());
+    }
+    printf("\n");
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
     while (true)
     {
         for (int col = 0; col < num_cols; ++col)
@@ -357,10 +430,6 @@ extern "C" void app_main(void)
 
         // Delay before next scan
         vTaskDelay(pdMS_TO_TICKS(10));
-        // if (val % 100 == 0)
-        // printf("-%09d.\n", val);
-        val++;
-        // fflush(stdout);
         if (!gpio_get_level(GPIO_NUM_2))
             printf("back\n");
         if (!gpio_get_level(GPIO_NUM_3))
