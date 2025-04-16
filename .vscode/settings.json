@@ -77,7 +77,11 @@
         "__verbose_abort": "cpp",
         "execution": "cpp",
         "ios": "cpp",
-        "locale": "cpp"
+        "locale": "cpp",
+        "hash_map": "cpp",
+        "hash_set": "cpp",
+        "bitset": "cpp",
+        "unordered_set": "cpp"
     },
     "idf.port": "/dev/ttyACM0",
     "C_Cpp.errorSquiggles": "enabled",
