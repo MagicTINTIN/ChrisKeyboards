@@ -24,4 +24,4 @@ Current matrix:
 }
 Skipped keys: HID_KEY_EUROPE_1 HID_KEY_SCROLL_LOCK HID_KEY_PAUSE
 
-FN Key : col 4, row 5
+FN Key : col 4, row 5 (referenced as HID_KEY_EUROPE_1 here)
