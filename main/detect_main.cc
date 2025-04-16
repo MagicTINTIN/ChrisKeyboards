@@ -231,7 +231,7 @@ extern "C" void app_main(void)
 
     // fflush(stdout);                // flush printf
     vTaskDelay(pdMS_TO_TICKS(200));
-    
+
     ESP_LOGI(TAG, "> starting...");
     vTaskDelay(pdMS_TO_TICKS(20));
     // ESP_LOGI(TAG, "> Go to");
@@ -241,8 +241,8 @@ extern "C" void app_main(void)
 
     // GPIOs for columns (outputs)
     const gpio_num_t cols[] = {
-        GPIO_NUM_40, GPIO_NUM_41, GPIO_NUM_42, GPIO_NUM_35,// GPIO_NUM_43,
-        GPIO_NUM_36, GPIO_NUM_45, GPIO_NUM_47, GPIO_NUM_48//GPIO_NUM_44
+        GPIO_NUM_40, GPIO_NUM_41, GPIO_NUM_42, GPIO_NUM_35, // GPIO_NUM_43,
+        GPIO_NUM_36, GPIO_NUM_45, GPIO_NUM_47, GPIO_NUM_48  // GPIO_NUM_44
     };
     const int num_cols = sizeof(cols) / sizeof(cols[0]);
 
@@ -254,15 +254,15 @@ extern "C" void app_main(void)
         GPIO_NUM_4, GPIO_NUM_5, GPIO_NUM_6, GPIO_NUM_7, GPIO_NUM_8,
         GPIO_NUM_9, GPIO_NUM_10, GPIO_NUM_11, GPIO_NUM_12, GPIO_NUM_13,
         GPIO_NUM_14, GPIO_NUM_15, GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18,
-        GPIO_NUM_19, GPIO_NUM_20
-    };
+        GPIO_NUM_19, GPIO_NUM_20};
     const int num_rows = sizeof(rows) / sizeof(rows[0]);
 
     ESP_LOGI(TAG, "> rows defined");
     vTaskDelay(pdMS_TO_TICKS(20));
 
     // --- Configure rows (inputs) ---
-    for (int i = 0; i < num_rows; ++i) {
+    for (int i = 0; i < num_rows; ++i)
+    {
         gpio_config_t row_conf = {
             .pin_bit_mask = 1ULL << rows[i],
             .mode = GPIO_MODE_INPUT,
@@ -277,7 +277,8 @@ extern "C" void app_main(void)
     vTaskDelay(pdMS_TO_TICKS(20));
 
     // --- Configure columns (outputs) ---
-    for (int i = 0; i < num_cols; ++i) {
+    for (int i = 0; i < num_cols; ++i)
+    {
         // ESP_LOGI(TAG, "> col:%i gpio:%02d... configuring...", i, cols[i]);
         vTaskDelay(pdMS_TO_TICKS(20));
         gpio_config_t col_conf = {
@@ -299,18 +300,43 @@ extern "C" void app_main(void)
     ESP_LOGI(TAG, "> cols gpio configured");
     vTaskDelay(pdMS_TO_TICKS(20));
 
+    gpio_config_t back = {
+        .pin_bit_mask = 1ULL << GPIO_NUM_3,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&back);
+
+    gpio_config_t skip = {
+        .pin_bit_mask = 1ULL << GPIO_NUM_2,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&skip);
+
     int val = 0;
-    printf("Go to matrix scan.\n");
+
+    ESP_LOGI(TAG, "> back/skip buttons configured");
+    vTaskDelay(pdMS_TO_TICKS(20));
+
+    printf("Successfully set up.\n");
 
     ESP_LOGI(TAG, "> matrix scanning started");
     vTaskDelay(pdMS_TO_TICKS(20));
     // ESP_LOGI(TAG, "> Go to");
     // ESP_LOGI(TAG, "> MAT\n");
     // --- Matrix scan loop ---
-    while (true) {
-        for (int col = 0; col < num_cols; ++col) {
+    while (true)
+    {
+        for (int col = 0; col < num_cols; ++col)
+        {
             // Set current column LOW, rest HIGH
-            for (int i = 0; i < num_cols; ++i) {
+            for (int i = 0; i < num_cols; ++i)
+            {
                 gpio_set_level(cols[i], i == col ? 0 : 1);
             }
 
@@ -318,9 +344,11 @@ extern "C" void app_main(void)
             esp_rom_delay_us(50);
 
             // Read all rows
-            for (int row = 0; row < num_rows; ++row) {
+            for (int row = 0; row < num_rows; ++row)
+            {
                 int val = gpio_get_level(rows[row]);
-                if (val == 0) {
+                if (val == 0)
+                {
                     // ESP_LOGI(TAG, "Key pressed at [col=%d, row=%d]", col, row);
                     printf("Key pressed at [col=%d, row=%d]\n", col, row);
                 }
@@ -330,8 +358,12 @@ extern "C" void app_main(void)
         // Delay before next scan
         vTaskDelay(pdMS_TO_TICKS(10));
         // if (val % 100 == 0)
-            // printf("-%09d.\n", val);
+        // printf("-%09d.\n", val);
         val++;
         // fflush(stdout);
+        if (!gpio_get_level(GPIO_NUM_2))
+            printf("back\n");
+        if (!gpio_get_level(GPIO_NUM_3))
+            printf("skip\n");
     }
 }
