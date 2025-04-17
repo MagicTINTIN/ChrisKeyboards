@@ -18,18 +18,17 @@ static const char *TAG = "DBG";
 
 const uint8_t hid_report_descriptor[] = {
     // TUD_HID_REPORT_DESC_MOUSE(HID_REPORT_ID(HID_ITF_PROTOCOL_MOUSE)),
-    TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(HID_ITF_PROTOCOL_KEYBOARD))
-    };
+    TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(HID_ITF_PROTOCOL_KEYBOARD))};
 
 /**
  * @brief String descriptor
  */
 const char *hid_string_descriptor[5] = {
-    (char[]){0x0c, 0x04},    // 0: is supported language is French, for English (0x0409)
-    "MagicTINTIN",           // 1: Manufacturer
-    "ChrisT1 Clavier",       // 2: Product
-    "123456",                // 3: Serials, should use chip ID
-    "CT1 Keyboard",          // 4: HID
+    (char[]){0x0c, 0x04}, // 0: is supported language is French, for English (0x0409)
+    "MagicTINTIN",        // 1: Manufacturer
+    "ChrisT1 Clavier",    // 2: Product
+    "123456",             // 3: Serials, should use chip ID
+    "CT1 Keyboard",       // 4: HID
 };
 
 /**
@@ -77,7 +76,6 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_
 
 /********* Application ***************/
 
-
 const uint8_t matrix[8][17] = {
     {HID_KEY_G, HID_KEY_NONE, HID_KEY_F4, HID_KEY_ESCAPE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_ALT_LEFT, HID_KEY_ARROW_UP, HID_KEY_KEYPAD_1, HID_KEY_KEYPAD_0, HID_KEY_F5, HID_KEY_APOSTROPHE, HID_KEY_NONE, HID_KEY_F6, HID_KEY_H},
     {HID_KEY_T, HID_KEY_CAPS_LOCK, HID_KEY_F3, HID_KEY_TAB, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_SHIFT_LEFT, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_KEYPAD_DECIMAL, HID_KEY_KEYPAD_DIVIDE, HID_KEY_KEYPAD_ADD, HID_KEY_BACKSPACE, HID_KEY_BRACKET_LEFT, HID_KEY_F7, HID_KEY_BRACKET_RIGHT, HID_KEY_Y},
@@ -88,39 +86,63 @@ const uint8_t matrix[8][17] = {
     {HID_KEY_V, HID_KEY_X, HID_KEY_C, HID_KEY_Z, HID_KEY_KEYPAD_MULTIPLY, HID_KEY_NONE, HID_KEY_SHIFT_RIGHT, HID_KEY_CONTROL_RIGHT, HID_KEY_NONE, HID_KEY_KEYPAD_SUBTRACT, HID_KEY_KEYPAD_5, HID_KEY_KEYPAD_6, HID_KEY_ENTER, HID_KEY_BACKSLASH, HID_KEY_PERIOD, HID_KEY_COMMA, HID_KEY_M},
     {HID_KEY_B, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_KEYPAD_2, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_ALT_RIGHT, HID_KEY_ARROW_LEFT, HID_KEY_ARROW_RIGHT, HID_KEY_ARROW_DOWN, HID_KEY_SPACE, HID_KEY_SLASH, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_N}};
 
-
 bool fnPressed = false;
 uint8_t _currentKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
 uint8_t _newKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
 uint8_t alreadyPressedKeys[UINT8_MAX + 1] = {0};
-uint8_t* currentKeys = _currentKeysContent;
-uint8_t* newKeys = _newKeysContent;
+
+uint8_t currentMod = 0;
+
+uint8_t *currentKeys = _currentKeysContent;
+uint8_t *newKeys = _newKeysContent;
 uint8_t newKeysIndex = 0;
 bool alreadyPressedNewKeysFull = false;
 
-
-// std::vector<uint8_t> newKeys = {};
+void modPressRegistration(uint8_t k)
+{
+    if (k == HID_KEY_CONTROL_LEFT)
+        currentMod |= KEYBOARD_MODIFIER_LEFTCTRL;
+    else if (k == HID_KEY_SHIFT_LEFT)
+        currentMod |= KEYBOARD_MODIFIER_LEFTSHIFT;
+    else if (k == HID_KEY_ALT_LEFT)
+        currentMod |= KEYBOARD_MODIFIER_LEFTALT;
+    else if (k == HID_KEY_GUI_LEFT)
+        currentMod |= KEYBOARD_MODIFIER_LEFTGUI;
+    else if (k == HID_KEY_CONTROL_RIGHT)
+        currentMod |= KEYBOARD_MODIFIER_RIGHTCTRL;
+    else if (k == HID_KEY_SHIFT_RIGHT)
+        currentMod |= KEYBOARD_MODIFIER_RIGHTSHIFT;
+    else if (k == HID_KEY_ALT_RIGHT)
+        currentMod |= KEYBOARD_MODIFIER_RIGHTALT;
+    else if (k == HID_KEY_GUI_RIGHT)
+        currentMod |= KEYBOARD_MODIFIER_RIGHTGUI;
+}
 
 /**
  * Already pressed keys are priorised
  */
 void keyPressRegistration(uint8_t k)
 {
+    if (k >= HID_KEY_CONTROL_LEFT)
+        modPressRegistration(k);
+        
     if (alreadyPressedNewKeysFull)
         return;
 
-    if (newKeysIndex < NUMBER_OF_SIMULT_KEYS) {
+    if (newKeysIndex < NUMBER_OF_SIMULT_KEYS)
+    {
         newKeys[newKeysIndex++] = k;
         return;
     }
     bool alreadyPressed = alreadyPressedKeys[k];
-    
+
     if (!alreadyPressed)
         return; // buffer already full, and not priorised, ignored
 
     for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++)
     {
-        if (!alreadyPressedKeys[newKeys[i]]) {
+        if (!alreadyPressedKeys[newKeys[i]])
+        {
             newKeys[i] = k;
             return;
         }
@@ -134,10 +156,16 @@ void keyUpdateRegistration()
     {
         alreadyPressedKeys[currentKeys[i]] = 0;
     }
-    uint8_t* tmp = currentKeys;
+    uint8_t *tmp = currentKeys;
     currentKeys = newKeys;
     newKeys = tmp;
+    memset(newKeys, 0, NUMBER_OF_SIMULT_KEYS);
+
+    //
+    sendKeysReport();
+
     newKeysIndex = 0;
+    currentMod = 0;
     alreadyPressedNewKeysFull = false;
     for (uint8_t i = 1; i < NUMBER_OF_SIMULT_KEYS; i++)
     {
@@ -145,6 +173,9 @@ void keyUpdateRegistration()
     }
 }
 
+void sendKeysReport()
+{
+}
 
 static void app_send_hid_demo(void)
 {
@@ -173,8 +204,7 @@ extern "C" void app_main(void)
     // GPIOs for columns (KSIs, ESP outputs)
     const gpio_num_t cols[] = {
         GPIO_NUM_40, GPIO_NUM_41, GPIO_NUM_42, GPIO_NUM_35,
-        GPIO_NUM_36, GPIO_NUM_45, GPIO_NUM_47, GPIO_NUM_48
-    };
+        GPIO_NUM_36, GPIO_NUM_45, GPIO_NUM_47, GPIO_NUM_48};
     const int num_cols = sizeof(cols) / sizeof(cols[0]);
 
     // GPIOs for rows (KSOs, ESP inputs)
