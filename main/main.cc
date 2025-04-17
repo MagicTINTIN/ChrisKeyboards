@@ -92,40 +92,64 @@ const uint8_t matrix[8][17] = {
 bool fnPressed = false;
 uint8_t _currentKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
 uint8_t _newKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
+uint8_t alreadyPressedKeys[UINT8_MAX + 1] = {0};
 uint8_t* currentKeys = _currentKeysContent;
 uint8_t* newKeys = _newKeysContent;
 uint8_t newKeysIndex = 0;
+bool alreadyPressedNewKeysFull = false;
 
 
 // std::vector<uint8_t> newKeys = {};
 
+/**
+ * Already pressed keys are priorised
+ */
 void keyPressRegistration(uint8_t k)
 {
-    if (newKeysIndex < NUMBER_OF_SIMULT_KEYS)
+    if (alreadyPressedNewKeysFull)
+        return;
+
+    if (newKeysIndex < NUMBER_OF_SIMULT_KEYS) {
         newKeys[newKeysIndex++] = k;
-    for (size_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++)
-    {
-        
+        return;
     }
-    for (size_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++)
+    bool alreadyPressed = alreadyPressedKeys[k];
+    
+    if (!alreadyPressed)
+        return; // buffer already full, and not priorised, ignored
+
+    for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++)
     {
-        
+        if (!alreadyPressedKeys[newKeys[i]]) {
+            newKeys[i] = k;
+            return;
+        }
     }
+    alreadyPressedNewKeysFull = true;
 }
 
 void keyUpdateRegistration()
 {
+    for (uint8_t i = 1; i < NUMBER_OF_SIMULT_KEYS; i++)
+    {
+        alreadyPressedKeys[currentKeys[i]] = 0;
+    }
     uint8_t* tmp = currentKeys;
     currentKeys = newKeys;
     newKeys = tmp;
     newKeysIndex = 0;
+    alreadyPressedNewKeysFull = false;
+    for (uint8_t i = 1; i < NUMBER_OF_SIMULT_KEYS; i++)
+    {
+        alreadyPressedKeys[currentKeys[i]] = 1;
+    }
 }
 
 
 static void app_send_hid_demo(void)
 {
     // Keyboard output: Send key 'a/A' pressed and released
-    ESP_LOGI(TAG, "Sending Keyboard report");
+    // ESP_LOGI(TAG, "Sending Keyboard report");
     uint8_t keycode[6] = {HID_KEY_A, 0, 0, 0, 0, 0};
     for (unsigned char i = 0; i < 4; i++)
     {
@@ -146,12 +170,6 @@ static void app_send_hid_demo(void)
 
 extern "C" void app_main(void)
 {
-    vTaskDelay(pdMS_TO_TICKS(200));
-
-    ESP_LOGI(TAG, "> starting...");
-    vTaskDelay(pdMS_TO_TICKS(20));
-    const char *TAG = "GPIO_MONITOR";
-
     // GPIOs for columns (KSIs, ESP outputs)
     const gpio_num_t cols[] = {
         GPIO_NUM_40, GPIO_NUM_41, GPIO_NUM_42, GPIO_NUM_35,
@@ -198,7 +216,6 @@ extern "C" void app_main(void)
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 
-    ESP_LOGI(TAG, "> cols gpio configured");
     vTaskDelay(pdMS_TO_TICKS(20));
 
     gpio_config_t back = {
@@ -219,7 +236,7 @@ extern "C" void app_main(void)
     };
     gpio_config(&skip);
 
-    ESP_LOGI(TAG, "> back/skip buttons configured");
+    // ESP_LOGI(TAG, "> back/skip buttons configured");
     vTaskDelay(pdMS_TO_TICKS(20));
 
     while (true)
