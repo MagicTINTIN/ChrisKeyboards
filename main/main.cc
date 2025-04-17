@@ -123,7 +123,7 @@ void sendKeysReport()
 {
     if (noKeyPressed && noKeyPressedPreviously)
         return;
-    printKeys();
+    // printKeys();
     tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
 }
 
@@ -153,8 +153,10 @@ void modPressRegistration(uint8_t k)
 void keyPressRegistration(uint8_t k)
 {
     noKeyPressed = false;
-    if (k >= HID_KEY_CONTROL_LEFT)
+    if (k >= HID_KEY_CONTROL_LEFT) {
         modPressRegistration(k);
+        return;
+    }
 
     if (alreadyPressedNewKeysFull)
         return;
@@ -337,7 +339,7 @@ extern "C" void app_main(void)
                     if (val == 0)
                     {
                         keyPressRegistration(matrix[col][row]);
-                        printf("Key pressed at [col=%d, row=%d]\n", col, row);
+                        // printf("Key pressed at [col=%d, row=%d]\n", col, row);
                     }
                 }
             }
