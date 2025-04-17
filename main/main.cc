@@ -97,6 +97,15 @@ uint8_t *currentKeys = _currentKeysContent;
 uint8_t *newKeys = _newKeysContent;
 uint8_t newKeysIndex = 0;
 bool alreadyPressedNewKeysFull = false;
+bool noKeyPressedPreviously = true;
+bool noKeyPressed = true;
+
+void sendKeysReport()
+{
+    if (noKeyPressed && noKeyPressedPreviously)
+        return;
+    tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
+}
 
 void modPressRegistration(uint8_t k)
 {
@@ -123,9 +132,10 @@ void modPressRegistration(uint8_t k)
  */
 void keyPressRegistration(uint8_t k)
 {
+    noKeyPressed = false;
     if (k >= HID_KEY_CONTROL_LEFT)
         modPressRegistration(k);
-        
+
     if (alreadyPressedNewKeysFull)
         return;
 
@@ -166,15 +176,15 @@ void keyUpdateRegistration()
 
     newKeysIndex = 0;
     currentMod = 0;
+
+    noKeyPressedPreviously = noKeyPressed;
+    noKeyPressed = true;
+
     alreadyPressedNewKeysFull = false;
     for (uint8_t i = 1; i < NUMBER_OF_SIMULT_KEYS; i++)
     {
         alreadyPressedKeys[currentKeys[i]] = 1;
     }
-}
-
-void sendKeysReport()
-{
 }
 
 static void app_send_hid_demo(void)
@@ -267,37 +277,59 @@ extern "C" void app_main(void)
     gpio_config(&skip);
 
     // ESP_LOGI(TAG, "> back/skip buttons configured");
-    vTaskDelay(pdMS_TO_TICKS(20));
+    // vTaskDelay(pdMS_TO_TICKS(20));
+
+    const tinyusb_config_t tusb_cfg = {
+        .device_descriptor = NULL,
+        .string_descriptor = hid_string_descriptor,
+        .string_descriptor_count = sizeof(hid_string_descriptor) / sizeof(hid_string_descriptor[0]),
+        .external_phy = false,
+#if (TUD_OPT_HIGH_SPEED)
+        .fs_configuration_descriptor = hid_configuration_descriptor, // HID configuration descriptor for full-speed and high-speed are the same
+        .hs_configuration_descriptor = hid_configuration_descriptor,
+        .qualifier_descriptor = NULL,
+#else
+        .configuration_descriptor = hid_configuration_descriptor,
+#endif // TUD_OPT_HIGH_SPEED
+    };
+
+    ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
 
     while (true)
     {
-        for (int col = 0; col < num_cols; ++col)
+        if (tud_mounted())
         {
-            // current to column LOW, rest HIGH
-            for (int i = 0; i < num_cols; ++i)
+            for (int col = 0; col < num_cols; ++col)
             {
-                gpio_set_level(cols[i], i == col ? 0 : 1);
-            }
-
-            // small delay for signal to settle
-            esp_rom_delay_us(50);
-
-            // read all rows
-            for (int row = 0; row < num_rows; ++row)
-            {
-                int val = gpio_get_level(rows[row]);
-                if (val == 0)
+                // current to column LOW, rest HIGH
+                for (int i = 0; i < num_cols; ++i)
                 {
-                    // printf("Key pressed at [col=%d, row=%d]\n", col, row);
+                    gpio_set_level(cols[i], i == col ? 0 : 1);
+                }
+
+                // small delay for signal to settle
+                esp_rom_delay_us(50);
+
+                // read all rows
+                for (int row = 0; row < num_rows; ++row)
+                {
+                    int val = gpio_get_level(rows[row]);
+                    if (val == 0)
+                    {
+                        keyPressRegistration(matrix[col][row]);
+                        // printf("Key pressed at [col=%d, row=%d]\n", col, row);
+                    }
                 }
             }
-        }
 
-        // special keys
-        if (!gpio_get_level(GPIO_NUM_2))
-            printf("back\n");
-        if (!gpio_get_level(GPIO_NUM_3))
-            printf("skip\n");
+            // special keys
+            if (!gpio_get_level(GPIO_NUM_2))
+                printf("back\n");
+            if (!gpio_get_level(GPIO_NUM_3))
+                printf("skip\n");
+
+            keyUpdateRegistration();
+        }
 
         // delay before next scan
         vTaskDelay(pdMS_TO_TICKS(10));
