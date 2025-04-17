@@ -12,6 +12,17 @@
 #define NUMBER_OF_SIMULT_KEYS 6
 static const char *TAG = "DBG";
 
+#define print_bits(x)                                    \
+    do                                                   \
+    {                                                    \
+        unsigned long long a__ = (x);                    \
+        size_t bits__ = sizeof(x) * 8;                   \
+        printf(#x ": ");                                 \
+        while (bits__--)                                 \
+            putchar(a__ & (1ULL << bits__) ? '1' : '0'); \
+        putchar('\n');                                   \
+    } while (0)
+
 /************* TinyUSB descriptors ****************/
 
 #define TUSB_DESC_TOTAL_LEN (TUD_CONFIG_DESC_LEN + CFG_TUD_HID * TUD_HID_DESC_LEN)
@@ -100,10 +111,19 @@ bool alreadyPressedNewKeysFull = false;
 bool noKeyPressedPreviously = true;
 bool noKeyPressed = true;
 
+void printKeys()
+{
+    printf("Sending\nCurr: [%x|%x|%x|%x|%x|%x]\n", currentKeys[0], currentKeys[1], currentKeys[2], currentKeys[3], currentKeys[4], currentKeys[5]);
+    printf("New: [%x|%x|%x|%x|%x|%x]\n", currentKeys[0], currentKeys[1], currentKeys[2], currentKeys[3], currentKeys[4], currentKeys[5]);
+    print_bits(currentMod);
+    printf("\n");
+}
+
 void sendKeysReport()
 {
     if (noKeyPressed && noKeyPressedPreviously)
         return;
+    printKeys();
     tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
 }
 
@@ -222,7 +242,7 @@ extern "C" void app_main(void)
         GPIO_NUM_4, GPIO_NUM_5, GPIO_NUM_6, GPIO_NUM_7, GPIO_NUM_8,
         GPIO_NUM_9, GPIO_NUM_10, GPIO_NUM_11, GPIO_NUM_12, GPIO_NUM_13,
         GPIO_NUM_14, GPIO_NUM_15, GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18,
-        GPIO_NUM_19, GPIO_NUM_20};
+        GPIO_NUM_37, GPIO_NUM_38};
     const int num_rows = sizeof(rows) / sizeof(rows[0]);
 
     // --- Configuring rows ---
@@ -317,7 +337,7 @@ extern "C" void app_main(void)
                     if (val == 0)
                     {
                         keyPressRegistration(matrix[col][row]);
-                        // printf("Key pressed at [col=%d, row=%d]\n", col, row);
+                        printf("Key pressed at [col=%d, row=%d]\n", col, row);
                     }
                 }
             }
