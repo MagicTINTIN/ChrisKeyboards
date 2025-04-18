@@ -152,6 +152,37 @@ const uint8_t matrix[8][17] = {
     {               HID_KEY_B,           HID_KEY_NONE,           HID_KEY_NONE,           HID_KEY_NONE,        HID_KEY_KEYPAD_2,           HID_KEY_NONE,           HID_KEY_NONE,           HID_KEY_NONE,       HID_KEY_ALT_RIGHT,      HID_KEY_ARROW_LEFT,     HID_KEY_ARROW_RIGHT,      HID_KEY_ARROW_DOWN,           HID_KEY_SPACE,           HID_KEY_SLASH,           HID_KEY_NONE,           HID_KEY_NONE,               HID_KEY_N}
 };
 
+
+#define HID_UNDEF                   0x0
+#define HIDMKY_FN_LOCK              0x1
+#define HIDMK_BACKLIGHT             0x2
+#define HIDMK_MORSE                 0x10
+#define HIDMK_HEXA                  0x11
+#define HIDMK_BIN                   0x12
+#define HIDUC_SCAN_PREVIOUS         0x40
+#define HIDUC_PLAY_PAUSE            0x41
+#define HIDUC_SCAN_NEXT             0x43
+#define HIDUC_BRIGHTNESS_DECREMENT  0x44
+#define HIDUC_BRIGHTNESS_INCREMENT  0x45
+#define HIDUC_AL_CALCULATOR         0x46
+#define HIDKEY_MUTE                 0x60
+#define HIDKEY_VOLUME_DOWN          0x61
+#define HIDKEY_VOLUME_UP            0x62
+#define HIDKEY_FIND                 0x63
+#define HIDKEY_APPLICATION          0x64
+
+const uint8_t fnMatrix[8][17] = {
+    {            0,            0,HIDUC_SCAN_PREVIOUS,         HIDMKY_FN_LOCK,            0,            0,            0,            0,            0,            0,            0,            0,HIDUC_PLAY_PAUSE,            0,            0,HIDUC_SCAN_NEXT,            0},
+    {            0,            0,       HIDKEY_VOLUME_UP,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0},
+    {            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0},
+    {            0,            HIDKEY_MUTE,     HIDKEY_VOLUME_DOWN,            0,            0,            0,            0,            0,            0,            0,            0,            0,            HIDKEY_FIND,            0,            0,            0,            0},
+    {            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,           HIDMK_MORSE,            0,            0,            0},
+    {            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,HIDUC_BRIGHTNESS_INCREMENT,HIDUC_BRIGHTNESS_DECREMENT,       HIDMK_BACKLIGHT,            0,            0,            0,            0},
+    {            0,            HIDMK_HEXA,HIDUC_AL_CALCULATOR,            0,            0,            0,            0,     HIDKEY_APPLICATION,            0,            0,            0,            0,            0,            0,            0,            0,            0},
+    {             HIDMK_BIN,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0}
+};
+
+
 static void app_send_hid_demo(void)
 {
     // Keyboard output: Send key 'a/A' pressed and released
@@ -188,6 +219,8 @@ static void app_send_hid_demo(void)
 
 std::string paddString(std::string input, unsigned char size, bool notFinal)
 {
+    if (size < input.size())
+        return input;
     std::string s = "";
     for (char i = 0; i < size - input.size(); i++)
     {
@@ -231,7 +264,7 @@ extern "C" void app_main(void)
         GPIO_NUM_4, GPIO_NUM_5, GPIO_NUM_6, GPIO_NUM_7, GPIO_NUM_8,
         GPIO_NUM_9, GPIO_NUM_10, GPIO_NUM_11, GPIO_NUM_12, GPIO_NUM_13,
         GPIO_NUM_14, GPIO_NUM_15, GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18,
-        GPIO_NUM_19, GPIO_NUM_20};
+        GPIO_NUM_37, GPIO_NUM_38};
     const int num_rows = sizeof(rows) / sizeof(rows[0]);
 
     ESP_LOGI(TAG, "> rows defined");
@@ -298,7 +331,8 @@ extern "C" void app_main(void)
     ESP_LOGI(TAG, "> back/skip buttons configured");
     vTaskDelay(pdMS_TO_TICKS(20));
 
-    std::vector<std::string> keys = {"HID_KEY_NONE", "HID_KEY_A", "HID_KEY_B", "HID_KEY_C", "HID_KEY_D", "HID_KEY_E", "HID_KEY_F", "HID_KEY_G", "HID_KEY_H", "HID_KEY_I", "HID_KEY_J", "HID_KEY_K", "HID_KEY_L", "HID_KEY_M", "HID_KEY_N", "HID_KEY_O", "HID_KEY_P", "HID_KEY_Q", "HID_KEY_R", "HID_KEY_S", "HID_KEY_T", "HID_KEY_U", "HID_KEY_V", "HID_KEY_W", "HID_KEY_X", "HID_KEY_Y", "HID_KEY_Z", "HID_KEY_1", "HID_KEY_2", "HID_KEY_3", "HID_KEY_4", "HID_KEY_5", "HID_KEY_6", "HID_KEY_7", "HID_KEY_8", "HID_KEY_9", "HID_KEY_0", "HID_KEY_ENTER", "HID_KEY_ESCAPE", "HID_KEY_BACKSPACE", "HID_KEY_TAB", "HID_KEY_SPACE", "HID_KEY_MINUS", "HID_KEY_EQUAL", "HID_KEY_BRACKET_LEFT", "HID_KEY_BRACKET_RIGHT", "HID_KEY_BACKSLASH", "HID_KEY_EUROPE_1", "HID_KEY_SEMICOLON", "HID_KEY_APOSTROPHE", "HID_KEY_GRAVE", "HID_KEY_COMMA", "HID_KEY_PERIOD", "HID_KEY_SLASH", "HID_KEY_CAPS_LOCK", "HID_KEY_F1", "HID_KEY_F2", "HID_KEY_F3", "HID_KEY_F4", "HID_KEY_F5", "HID_KEY_F6", "HID_KEY_F7", "HID_KEY_F8", "HID_KEY_F9", "HID_KEY_F10", "HID_KEY_F11", "HID_KEY_F12", "HID_KEY_PRINT_SCREEN", "HID_KEY_SCROLL_LOCK", "HID_KEY_PAUSE", "HID_KEY_INSERT", "HID_KEY_HOME", "HID_KEY_PAGE_UP", "HID_KEY_DELETE", "HID_KEY_END", "HID_KEY_PAGE_DOWN", "HID_KEY_ARROW_RIGHT", "HID_KEY_ARROW_LEFT", "HID_KEY_ARROW_DOWN", "HID_KEY_ARROW_UP", "HID_KEY_NUM_LOCK", "HID_KEY_KEYPAD_DIVIDE", "HID_KEY_KEYPAD_MULTIPLY", "HID_KEY_KEYPAD_SUBTRACT", "HID_KEY_KEYPAD_ADD", "HID_KEY_KEYPAD_ENTER", "HID_KEY_KEYPAD_1", "HID_KEY_KEYPAD_2", "HID_KEY_KEYPAD_3", "HID_KEY_KEYPAD_4", "HID_KEY_KEYPAD_5", "HID_KEY_KEYPAD_6", "HID_KEY_KEYPAD_7", "HID_KEY_KEYPAD_8", "HID_KEY_KEYPAD_9", "HID_KEY_KEYPAD_0", "HID_KEY_KEYPAD_DECIMAL", "HID_KEY_CONTROL_LEFT", "HID_KEY_SHIFT_LEFT", "HID_KEY_ALT_LEFT", "HID_KEY_GUI_LEFT", "HID_KEY_CONTROL_RIGHT", "HID_KEY_SHIFT_RIGHT", "HID_KEY_ALT_RIGHT"};
+    // std::vector<std::string> keys = {"HID_KEY_NONE", "HID_KEY_A", "HID_KEY_B", "HID_KEY_C", "HID_KEY_D", "HID_KEY_E", "HID_KEY_F", "HID_KEY_G", "HID_KEY_H", "HID_KEY_I", "HID_KEY_J", "HID_KEY_K", "HID_KEY_L", "HID_KEY_M", "HID_KEY_N", "HID_KEY_O", "HID_KEY_P", "HID_KEY_Q", "HID_KEY_R", "HID_KEY_S", "HID_KEY_T", "HID_KEY_U", "HID_KEY_V", "HID_KEY_W", "HID_KEY_X", "HID_KEY_Y", "HID_KEY_Z", "HID_KEY_1", "HID_KEY_2", "HID_KEY_3", "HID_KEY_4", "HID_KEY_5", "HID_KEY_6", "HID_KEY_7", "HID_KEY_8", "HID_KEY_9", "HID_KEY_0", "HID_KEY_ENTER", "HID_KEY_ESCAPE", "HID_KEY_BACKSPACE", "HID_KEY_TAB", "HID_KEY_SPACE", "HID_KEY_MINUS", "HID_KEY_EQUAL", "HID_KEY_BRACKET_LEFT", "HID_KEY_BRACKET_RIGHT", "HID_KEY_BACKSLASH", "HID_KEY_EUROPE_1", "HID_KEY_SEMICOLON", "HID_KEY_APOSTROPHE", "HID_KEY_GRAVE", "HID_KEY_COMMA", "HID_KEY_PERIOD", "HID_KEY_SLASH", "HID_KEY_CAPS_LOCK", "HID_KEY_F1", "HID_KEY_F2", "HID_KEY_F3", "HID_KEY_F4", "HID_KEY_F5", "HID_KEY_F6", "HID_KEY_F7", "HID_KEY_F8", "HID_KEY_F9", "HID_KEY_F10", "HID_KEY_F11", "HID_KEY_F12", "HID_KEY_PRINT_SCREEN", "HID_KEY_SCROLL_LOCK", "HID_KEY_PAUSE", "HID_KEY_INSERT", "HID_KEY_HOME", "HID_KEY_PAGE_UP", "HID_KEY_DELETE", "HID_KEY_END", "HID_KEY_PAGE_DOWN", "HID_KEY_ARROW_RIGHT", "HID_KEY_ARROW_LEFT", "HID_KEY_ARROW_DOWN", "HID_KEY_ARROW_UP", "HID_KEY_NUM_LOCK", "HID_KEY_KEYPAD_DIVIDE", "HID_KEY_KEYPAD_MULTIPLY", "HID_KEY_KEYPAD_SUBTRACT", "HID_KEY_KEYPAD_ADD", "HID_KEY_KEYPAD_ENTER", "HID_KEY_KEYPAD_1", "HID_KEY_KEYPAD_2", "HID_KEY_KEYPAD_3", "HID_KEY_KEYPAD_4", "HID_KEY_KEYPAD_5", "HID_KEY_KEYPAD_6", "HID_KEY_KEYPAD_7", "HID_KEY_KEYPAD_8", "HID_KEY_KEYPAD_9", "HID_KEY_KEYPAD_0", "HID_KEY_KEYPAD_DECIMAL", "HID_KEY_CONTROL_LEFT", "HID_KEY_SHIFT_LEFT", "HID_KEY_ALT_LEFT", "HID_KEY_GUI_LEFT", "HID_KEY_CONTROL_RIGHT", "HID_KEY_SHIFT_RIGHT", "HID_KEY_ALT_RIGHT"};
+    std::vector<std::string> keys = {"HID_KEY_NONE", "MY_KEYS_HEXA", "MY_KEYS_BIN", "MY_KEYS_MORSE", "MY_KEYS_BACKLIGHT", "MY_KEYS_FN_LOCK", "HID_KEY_MUTE", "HID_KEY_VOLUME_UP", "HID_KEY_VOLUME_DOWN", "HID_KEY_APPLICATION", "HID_KEY_FIND", "HID_USAGE_CONSUMER_BRIGHTNESS_INCREMENT", "HID_USAGE_CONSUMER_BRIGHTNESS_DECREMENT", "HID_USAGE_CONSUMER_AL_CALCULATOR", "HID_USAGE_CONSUMER_PLAY_PAUSE", "HID_USAGE_CONSUMER_SCAN_NEXT", "HID_USAGE_CONSUMER_SCAN_PREVIOUS"};
     std::vector<std::string> skippedKeys = {};
     int matrix[num_cols][num_rows] = {0};
 
