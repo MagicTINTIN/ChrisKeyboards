@@ -87,6 +87,34 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_
 
 /********* Application ***************/
 
+#define M_HID_UNDEF 0x0
+#define M_HIDMKY_FN_LOCK 0x1
+#define M_HIDMK_BACKLIGHT 0x2
+#define M_HIDMK_MORSE 0x20
+#define M_HIDMK_HEXA 0x21
+#define M_HIDMK_BIN 0x22
+#define M_HIDUC_SCAN_PREVIOUS 0x40
+#define M_HIDUC_PLAY_PAUSE 0x41
+#define M_HIDUC_SCAN_NEXT 0x43
+#define M_HIDUC_BRIGHTNESS_DECREMENT 0x44
+#define M_HIDUC_BRIGHTNESS_INCREMENT 0x45
+#define M_HIDUC_AL_CALCULATOR 0x46
+#define M_HIDKEY_MUTE 0x60
+#define M_HIDKEY_VOLUME_DOWN 0x61
+#define M_HIDKEY_VOLUME_UP 0x62
+#define M_HIDKEY_FIND 0x63
+#define M_HIDKEY_APPLICATION 0x64
+
+const uint8_t fnMatrix[8][17] = {
+    {0, 0, M_HIDUC_SCAN_PREVIOUS, M_HIDMKY_FN_LOCK, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDUC_PLAY_PAUSE, 0, 0, M_HIDUC_SCAN_NEXT, 0},
+    {0, 0, M_HIDKEY_VOLUME_UP, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, M_HIDKEY_MUTE, M_HIDKEY_VOLUME_DOWN, 0, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDKEY_FIND, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDMK_MORSE, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDUC_BRIGHTNESS_INCREMENT, M_HIDUC_BRIGHTNESS_DECREMENT, M_HIDMK_BACKLIGHT, 0, 0, 0, 0},
+    {0, M_HIDMK_HEXA, M_HIDUC_AL_CALCULATOR, 0, 0, 0, 0, M_HIDKEY_APPLICATION, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {M_HIDMK_BIN, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
+
 const uint8_t matrix[8][17] = {
     {HID_KEY_G, HID_KEY_NONE, HID_KEY_F4, HID_KEY_ESCAPE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_ALT_LEFT, HID_KEY_ARROW_UP, HID_KEY_KEYPAD_1, HID_KEY_KEYPAD_0, HID_KEY_F5, HID_KEY_APOSTROPHE, HID_KEY_NONE, HID_KEY_F6, HID_KEY_H},
     {HID_KEY_T, HID_KEY_CAPS_LOCK, HID_KEY_F3, HID_KEY_TAB, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_SHIFT_LEFT, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_KEYPAD_DECIMAL, HID_KEY_KEYPAD_DIVIDE, HID_KEY_KEYPAD_ADD, HID_KEY_BACKSPACE, HID_KEY_BRACKET_LEFT, HID_KEY_F7, HID_KEY_BRACKET_RIGHT, HID_KEY_Y},
@@ -98,6 +126,8 @@ const uint8_t matrix[8][17] = {
     {HID_KEY_B, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_KEYPAD_2, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_ALT_RIGHT, HID_KEY_ARROW_LEFT, HID_KEY_ARROW_RIGHT, HID_KEY_ARROW_DOWN, HID_KEY_SPACE, HID_KEY_SLASH, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_N}};
 
 bool fnPressed = false;
+bool fnNewPressed = false;
+bool fnLocked = false;
 uint8_t _currentKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
 uint8_t _newKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
 uint8_t alreadyPressedKeys[UINT8_MAX + 1] = {0};
@@ -129,6 +159,7 @@ void sendKeysReport()
 
 void modPressRegistration(uint8_t k)
 {
+    noKeyPressed = false;
     if (k == HID_KEY_CONTROL_LEFT)
         currentMod |= KEYBOARD_MODIFIER_LEFTCTRL;
     else if (k == HID_KEY_SHIFT_LEFT)
@@ -147,20 +178,10 @@ void modPressRegistration(uint8_t k)
         currentMod |= KEYBOARD_MODIFIER_RIGHTGUI;
 }
 
-/**
- * Already pressed keys are priorised
- */
-void keyPressRegistration(uint8_t k)
+void normalKeyPressRegistration(uint8_t k)
 {
     noKeyPressed = false;
-    if (k >= HID_KEY_CONTROL_LEFT) {
-        modPressRegistration(k);
-        return;
-    }
-
-    if (alreadyPressedNewKeysFull)
-        return;
-
+    // Already pressed keys are priorised
     if (newKeysIndex < NUMBER_OF_SIMULT_KEYS)
     {
         newKeys[newKeysIndex++] = k;
@@ -182,6 +203,92 @@ void keyPressRegistration(uint8_t k)
     alreadyPressedNewKeysFull = true;
 }
 
+void myKeysRegistration(uint8_t k)
+{
+}
+
+void languageKeysRegistration(uint8_t k)
+{
+}
+
+void hidUsageKeysRegistration(uint8_t k)
+{
+}
+
+void otherHidKeysRegistration(uint8_t k)
+{
+    switch (k)
+    {
+    case M_HIDKEY_MUTE:
+        normalKeyPressRegistration(HID_KEY_MUTE);
+        return;
+    case M_HIDKEY_VOLUME_DOWN:
+        normalKeyPressRegistration(HID_KEY_VOLUME_DOWN);
+        return;
+    case M_HIDKEY_VOLUME_UP:
+        normalKeyPressRegistration(HID_KEY_VOLUME_UP);
+        return;
+    case M_HIDKEY_FIND:
+        normalKeyPressRegistration(HID_KEY_FIND);
+        return;
+    case M_HIDKEY_APPLICATION:
+        normalKeyPressRegistration(HID_KEY_FIND);
+        return;
+
+    default:
+        return;
+    }
+}
+
+void fnKeyPressRegistration(uint8_t k)
+{
+    // Already pressed keys are priorised
+    if (k == 0)
+        return;
+    // my keyboard features
+    else if (k < 0x20)
+        myKeysRegistration(k);
+    // language key features
+    else if (k < 0x40)
+        languageKeysRegistration(k);
+    // HID Usage Table (consumer Page)
+    else if (k < 0x60)
+        hidUsageKeysRegistration(k);
+    // other HIDs
+    else
+        otherHidKeysRegistration(k);
+}
+
+void keyPressRegistration(uint8_t c, uint8_t r)
+{
+    // I assigned Fn to Europe 1 as I don't what it is lol
+    uint8_t k = matrix[c][r];
+    if (k == HID_KEY_EUROPE_1)
+    {
+        fnNewPressed = true;
+        fnPressed = true;
+        return;
+    }
+
+    if (fnPressed || (fnLocked && k >= HID_KEY_F1 && k <= HID_KEY_F12))
+    {
+        fnKeyPressRegistration(fnMatrix[c][r]);
+        return;
+    }
+
+    // normal keys
+    if (k >= HID_KEY_CONTROL_LEFT)
+    {
+        modPressRegistration(k);
+        return;
+    }
+
+    if (alreadyPressedNewKeysFull)
+        return;
+
+    normalKeyPressRegistration(matrix[c][r]);
+}
+
 void keyUpdateRegistration()
 {
     for (uint8_t i = 1; i < NUMBER_OF_SIMULT_KEYS; i++)
@@ -191,6 +298,7 @@ void keyUpdateRegistration()
     uint8_t *tmp = currentKeys;
     currentKeys = newKeys;
     newKeys = tmp;
+    fnPressed = fnNewPressed;
     memset(newKeys, 0, NUMBER_OF_SIMULT_KEYS);
 
     //
@@ -201,6 +309,7 @@ void keyUpdateRegistration()
 
     noKeyPressedPreviously = noKeyPressed;
     noKeyPressed = true;
+    fnNewPressed = false;
 
     alreadyPressedNewKeysFull = false;
     for (uint8_t i = 1; i < NUMBER_OF_SIMULT_KEYS; i++)
@@ -338,7 +447,7 @@ extern "C" void app_main(void)
                     int val = gpio_get_level(rows[row]);
                     if (val == 0)
                     {
-                        keyPressRegistration(matrix[col][row]);
+                        keyPressRegistration(col, row);
                         // printf("Key pressed at [col=%d, row=%d]\n", col, row);
                     }
                 }
