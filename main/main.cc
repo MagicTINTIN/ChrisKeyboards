@@ -205,6 +205,14 @@ void normalKeyPressRegistration(uint8_t k)
 
 void myKeysRegistration(uint8_t k)
 {
+    switch (k)
+    {
+    case M_HIDMKY_FN_LOCK:
+        fnLocked = !fnLocked;
+        return;
+    default:
+        return;
+    }
 }
 
 void languageKeysRegistration(uint8_t k)
@@ -270,7 +278,7 @@ void keyPressRegistration(uint8_t c, uint8_t r)
         return;
     }
 
-    if (fnPressed || (fnLocked && k >= HID_KEY_F1 && k <= HID_KEY_F12))
+    if ((fnPressed && (k < HID_KEY_F1 || k > HID_KEY_F12)) || ((fnLocked ^ fnPressed) && k >= HID_KEY_F1 && k <= HID_KEY_F12))
     {
         fnKeyPressRegistration(fnMatrix[c][r]);
         return;
