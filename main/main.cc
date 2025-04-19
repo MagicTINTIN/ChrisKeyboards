@@ -141,6 +141,9 @@ bool alreadyPressedNewKeysFull = false;
 bool noKeyPressedPreviously = true;
 bool noKeyPressed = true;
 
+// bool noUsagePressed = true;
+// bool noUsagePressedPreviously = true;
+
 void printKeys()
 {
     printf("Sending\nCurr: [%x|%x|%x|%x|%x|%x]\n", currentKeys[0], currentKeys[1], currentKeys[2], currentKeys[3], currentKeys[4], currentKeys[5]);
@@ -151,10 +154,13 @@ void printKeys()
 
 void sendKeysReport()
 {
-    if (noKeyPressed && noKeyPressedPreviously)
-        return;
+    if (!noKeyPressed || !noKeyPressedPreviously)
+        tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
+
+    // if (!noUsagePressed || ! noUsagePressedPreviously)
+    //     tud_hid_report(REPORT_ID_CONSUMER, currentUsage, sizeof(currentUsage));
+
     // printKeys();
-    tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
 }
 
 void modPressRegistration(uint8_t k)
@@ -221,6 +227,7 @@ void languageKeysRegistration(uint8_t k)
 
 void hidUsageKeysRegistration(uint8_t k)
 {
+    
 }
 
 void otherHidKeysRegistration(uint8_t k)
