@@ -67,9 +67,9 @@ static uint8_t const hid_report_descriptor_mouse[] = {
   TUD_HID_REPORT_DESC_MOUSE(HID_REPORT_ID(REPORT_ID_MOUSE))
 };
 
-static uint8_t const hid_report_descriptor_consumer[] = {
-  TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(REPORT_ID_CONSUMER))
-};
+// static uint8_t const hid_report_descriptor_consumer[] = {
+//   TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(REPORT_ID_CONSUMER))
+// };
 
 /**
  * @brief String descriptor
@@ -103,9 +103,7 @@ static const uint8_t hid_configuration_descriptor[] = {
   TUD_HID_DESCRIPTOR(ITF_NUM_MOUSE,    4, true,
                      sizeof(hid_report_descriptor_mouse),
                      0x82, 16, 10),
-  TUD_HID_DESCRIPTOR(ITF_NUM_CONSUMER, 4, false,
-                     sizeof(hid_report_descriptor_consumer),
-                     0x83, 16, 10),
+//   TUD_HID_DESCRIPTOR(0, 0, false, sizeof(hid_report_descriptor_consumer), 0x81, CFG_TUD_HID_EP_BUFSIZE, 5),
 };
 
 /********* TinyUSB HID callbacks ***************/
@@ -121,7 +119,7 @@ uint8_t const* tud_hid_descriptor_report_cb(uint8_t instance) {
   switch (instance) {
     case ITF_NUM_KEYBOARD: return hid_report_descriptor_keyboard;
     case ITF_NUM_MOUSE:    return hid_report_descriptor_mouse;
-    case ITF_NUM_CONSUMER: return hid_report_descriptor_consumer;
+    // case ITF_NUM_CONSUMER: return hid_report_descriptor_consumer;
     default:               return NULL; // should never happen
   }
 }
