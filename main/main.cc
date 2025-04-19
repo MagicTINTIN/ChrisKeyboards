@@ -25,11 +25,51 @@ static const char *TAG = "DBG";
 
 /************* TinyUSB descriptors ****************/
 
-#define TUSB_DESC_TOTAL_LEN (TUD_CONFIG_DESC_LEN + CFG_TUD_HID * TUD_HID_DESC_LEN)
+// #define TUSB_DESC_TOTAL_LEN (TUD_CONFIG_DESC_LEN + CFG_TUD_HID * TUD_HID_DESC_LEN)
+
+// Report‑IDs
+enum {
+  REPORT_ID_KEYBOARD  = 1,
+  REPORT_ID_MOUSE     = 2,
+  REPORT_ID_CONSUMER  = 3,
+};
+
+// Interface numbers
+#define ITF_NUM_KEYBOARD   0
+#define ITF_NUM_MOUSE      1
+#define ITF_NUM_CONSUMER   2
+#define CONFIG_TOTAL_ITF   3
+
+// Combined descriptor length
+#define TUSB_DESC_TOTAL_LEN  \
+   (TUD_CONFIG_DESC_LEN       + \
+    TUD_HID_DESC_LEN /*kbd*/   + \
+    TUD_HID_DESC_LEN /*mouse*/ + \
+    TUD_HID_DESC_LEN /*cons*/)
+
+
 
 const uint8_t hid_report_descriptor[] = {
-    // TUD_HID_REPORT_DESC_MOUSE(HID_REPORT_ID(HID_ITF_PROTOCOL_MOUSE)),
+        // TUD_HID_REPORT_DESC_MOUSE(HID_REPORT_ID(HID_ITF_PROTOCOL_MOUSE)),
     TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(HID_ITF_PROTOCOL_KEYBOARD))};
+
+//   TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(REPORT_ID_KEYBOARD)),
+//   TUD_HID_REPORT_DESC_MOUSE   (HID_REPORT_ID(REPORT_ID_MOUSE)),
+//   TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(REPORT_ID_CONSUMER))
+// };
+
+
+static uint8_t const hid_report_descriptor_keyboard[] = {
+  TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(REPORT_ID_KEYBOARD))
+};
+
+static uint8_t const hid_report_descriptor_mouse[] = {
+  TUD_HID_REPORT_DESC_MOUSE(HID_REPORT_ID(REPORT_ID_MOUSE))
+};
+
+static uint8_t const hid_report_descriptor_consumer[] = {
+  TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(REPORT_ID_CONSUMER))
+};
 
 /**
  * @brief String descriptor
@@ -47,22 +87,43 @@ const char *hid_string_descriptor[5] = {
  *
  * This is a simple configuration descriptor that defines 1 configuration and 1 HID interface
  */
-static const uint8_t hid_configuration_descriptor[] = {
-    // Configuration number, interface count, string index, total length, attribute, power in mA
-    TUD_CONFIG_DESCRIPTOR(1, 1, 0, TUSB_DESC_TOTAL_LEN, TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
+// static const uint8_t hid_configuration_descriptor[] = {
+//         // Configuration number, interface count, string index, total length, attribute, power in mA
+//     TUD_CONFIG_DESCRIPTOR(1, 1, 0, TUSB_DESC_TOTAL_LEN, TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
 
-    // Interface number, string index, boot protocol, report descriptor len, EP In address, size & polling interval
-    TUD_HID_DESCRIPTOR(0, 4, false, sizeof(hid_report_descriptor), 0x81, 16, 10),
+//     // Interface number, string index, boot protocol, report descriptor len, EP In address, size & polling interval
+//     TUD_HID_DESCRIPTOR(0, 4, false, sizeof(hid_report_descriptor), 0x81, 16, 10),
+// };
+
+static const uint8_t hid_configuration_descriptor[] = {
+  TUD_CONFIG_DESCRIPTOR(1, CONFIG_TOTAL_ITF, 0, TUSB_DESC_TOTAL_LEN, TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
+  TUD_HID_DESCRIPTOR(ITF_NUM_KEYBOARD, 4, true,
+                     sizeof(hid_report_descriptor_keyboard),
+                     0x81, 16, 10),
+  TUD_HID_DESCRIPTOR(ITF_NUM_MOUSE,    4, true,
+                     sizeof(hid_report_descriptor_mouse),
+                     0x82, 16, 10),
+  TUD_HID_DESCRIPTOR(ITF_NUM_CONSUMER, 4, false,
+                     sizeof(hid_report_descriptor_consumer),
+                     0x83, 16, 10),
 };
 
 /********* TinyUSB HID callbacks ***************/
 
 // Invoked when received GET HID REPORT DESCRIPTOR request
 // Application return pointer to descriptor, whose contents must exist long enough for transfer to complete
-uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance)
-{
-    // We use only one interface and one HID report descriptor, so we can ignore parameter 'instance'
-    return hid_report_descriptor;
+// uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance)
+// {
+//     // We use only one interface and one HID report descriptor, so we can ignore parameter 'instance'
+//     return hid_report_descriptor;
+// }
+uint8_t const* tud_hid_descriptor_report_cb(uint8_t instance) {
+  switch (instance) {
+    case ITF_NUM_KEYBOARD: return hid_report_descriptor_keyboard;
+    case ITF_NUM_MOUSE:    return hid_report_descriptor_mouse;
+    case ITF_NUM_CONSUMER: return hid_report_descriptor_consumer;
+    default:               return NULL; // should never happen
+  }
 }
 
 // Invoked when received GET_REPORT control request
