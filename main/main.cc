@@ -36,7 +36,8 @@ static const char *TAG = "DBG";
 // };
 
 static uint8_t const hid_report_descriptor[] = {
-  TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(1)),
+//   TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(1)),
+  TUD_HID_REPORT_DESC_KEYBOARD(),
 //   TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(2))
 };
 
@@ -44,7 +45,8 @@ static uint8_t const hid_report_descriptor[] = {
  * @brief String descriptor
  */
 const char *hid_string_descriptor[5] = {
-    (char[]){0x0c, 0x04}, // 0: is supported language is French, for English (0x0409)
+    (char[]){ 4, TUSB_DESC_STRING, 0x0c, 0x04 },
+    // (char[]){0x0c, 0x04}, // 0: is supported language is French, for English (0x0409)
     "MagicTINTIN",        // 1: Manufacturer
     "ChrisT1 Clavier",    // 2: Product
     "123456",             // 3: Serials, should use chip ID
@@ -166,7 +168,8 @@ void printKeys()
 void sendKeysReport()
 {
     if (!noKeyPressed || !noKeyPressedPreviously)
-        tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
+        tud_hid_keyboard_report(0, currentMod, currentKeys);
+        // tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
 
     // if (!noUsagePressed || ! noUsagePressedPreviously)
     //     tud_hid_report(REPORT_ID_CONSUMER, currentUsage, sizeof(currentUsage));
