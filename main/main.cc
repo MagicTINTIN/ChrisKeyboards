@@ -1,3 +1,4 @@
+#define CFG_TUD_HID 1
 #include <stdlib.h>
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -26,6 +27,7 @@ static const char *TAG = "DBG";
 /************* TinyUSB descriptors ****************/
 
 #define TUSB_DESC_TOTAL_LEN (TUD_CONFIG_DESC_LEN + CFG_TUD_HID * TUD_HID_DESC_LEN)
+// #define TUSB_DESC_TOTAL_LEN (TUD_CONFIG_DESC_LEN + 2 * TUD_HID_DESC_LEN)
 
 // const uint8_t hid_report_descriptor[] = {
 //     // TUD_HID_REPORT_DESC_MOUSE(HID_REPORT_ID(HID_ITF_PROTOCOL_MOUSE)),
@@ -36,21 +38,29 @@ static const char *TAG = "DBG";
 // };
 
 static uint8_t const hid_report_descriptor[] = {
-//   TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(1)),
-  TUD_HID_REPORT_DESC_KEYBOARD(),
-//   TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(2))
+      TUD_HID_REPORT_DESC_KEYBOARD(),
+    // TUD_HID_REPORT_DESC_KEYBOARD(),
+    //   TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(2))
+};
+
+static uint8_t const hid_consumer_report_descriptor[] = {
+    //   TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(1)),
+    //   TUD_HID_REPORT_DESC_KEYBOARD(),
+    //   TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(2))
+    TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(2))
+
 };
 
 /**
  * @brief String descriptor
  */
 const char *hid_string_descriptor[5] = {
-    (char[]){ 4, TUSB_DESC_STRING, 0x0c, 0x04 },
+    (char[]){4, TUSB_DESC_STRING, 0x0c, 0x04},
     // (char[]){0x0c, 0x04}, // 0: is supported language is French, for English (0x0409)
-    "MagicTINTIN",        // 1: Manufacturer
-    "ChrisT1 Clavier",    // 2: Product
-    "123456",             // 3: Serials, should use chip ID
-    "CT1 Keyboard",       // 4: HID
+    "MagicTINTIN",     // 1: Manufacturer
+    "ChrisT1 Clavier", // 2: Product
+    "123456",          // 3: Serials, should use chip ID
+    "CT1 Keyboard",    // 4: HID
 };
 
 /**
@@ -65,7 +75,10 @@ static const uint8_t hid_configuration_descriptor[] = {
     // Interface number, string index, boot protocol, report descriptor len, EP In address, size & polling interval
     // FIXME: booot protocol ?
     TUD_HID_DESCRIPTOR(0, 4, true, sizeof(hid_report_descriptor), 0x81, 16, 10),
+    // TUD_HID_DESCRIPTOR(0, 4, true, sizeof(hid_report_descriptor), 0x81, CFG_TUD_HID_EP_BUFSIZE, 10),
     // TUD_HID_DESCRIPTOR(0, 0, false, sizeof(hid_consumer_report_descriptor), 0x81, CFG_TUD_HID_EP_BUFSIZE, 5),
+    // TUD_HID_DESCRIPTOR(0, 0, false, sizeof(hid_consumer_report_descriptor), 0x81, CFG_TUD_HID_EP_BUFSIZE, 5),
+    // TUD_HID_DESCRIPTOR(1, 0, false, sizeof(hid_consumer_report_descriptor), 0x82, CFG_TUD_HID_EP_BUFSIZE, 5),
 };
 
 /********* TinyUSB HID callbacks ***************/
@@ -75,6 +88,23 @@ static const uint8_t hid_configuration_descriptor[] = {
 uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance)
 {
     // We use only one interface and one HID report descriptor, so we can ignore parameter 'instance'
+    // switch (instance)
+    // {
+    // case 1:
+    // case 2:
+    //     return hid_consumer_report_descriptor;
+
+    // default:
+    //     return hid_report_descriptor;
+    // }
+    if (instance == 1)
+    {
+        return hid_consumer_report_descriptor;
+    }
+    else
+    {
+        return hid_report_descriptor;
+    }
     return hid_report_descriptor;
 }
 
@@ -167,9 +197,14 @@ void printKeys()
 
 void sendKeysReport()
 {
+    if (tud_hid_n_ready(0))
+        printf("nice ?\n");
+    else
+        printf("nique ?\n");
+
     if (!noKeyPressed || !noKeyPressedPreviously)
-        tud_hid_keyboard_report(0, currentMod, currentKeys);
-        // tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
+        // tud_hid_keyboard_report(0, currentMod, currentKeys);
+        tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
 
     // if (!noUsagePressed || ! noUsagePressedPreviously)
     //     tud_hid_report(REPORT_ID_CONSUMER, currentUsage, sizeof(currentUsage));
@@ -242,15 +277,26 @@ void languageKeysRegistration(uint8_t k)
 void send_play_pause(void)
 {
     uint16_t usage = HID_USAGE_CONSUMER_PLAY_PAUSE;
-    uint8_t buf[2] = {(uint8_t)usage, (uint8_t)(usage >> 8)};
+    // uint8_t buf[2] = {(uint8_t)usage, (uint8_t)(usage >> 8)};
+    uint8_t rptId = 2;
+    uint8_t  buf[3] = { rptId, (uint8_t)(usage & 0xFF), (uint8_t) (usage >> 8) };
 
-    // report‑ID 2 = our consumer interface
-    tud_hid_report(2, buf, sizeof(buf));
-    vTaskDelay(pdMS_TO_TICKS(10));
-    printf("playpaused ?\n");
-    // release
-    buf[0] = buf[1] = 0;
-    tud_hid_report(2, buf, sizeof(buf));
+    if (tud_hid_n_ready(1))
+    {
+        // report‑ID 2 = our consumer interface
+        // tud_hid_report(2, buf, sizeof(buf));
+        tud_hid_n_report(1, rptId, buf, sizeof(buf));
+
+        vTaskDelay(pdMS_TO_TICKS(10));
+        printf("playpaused ?\n");
+        // release
+        buf[0] = buf[1] = 0;
+        // tud_hid_report(2, buf, sizeof(buf));
+        tud_hid_n_report(1, rptId, buf, sizeof(buf));
+    } else {
+        printf("NOT INITIALIZED CONSUMER\n");
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
 }
 
 void hidUsageKeysRegistration(uint8_t k)
