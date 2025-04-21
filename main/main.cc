@@ -27,6 +27,7 @@ static const char *TAG = "DBG";
 /************* TinyUSB descriptors ****************/
 
 #define TUSB_DESC_TOTAL_LEN (TUD_CONFIG_DESC_LEN + CFG_TUD_HID * TUD_HID_DESC_LEN)
+// #define TUSB_DESC_TOTAL_LEN (TUD_CONFIG_DESC_LEN + 2 * TUD_HID_DESC_LEN)
 
 // const uint8_t hid_report_descriptor[] = {
 //     // TUD_HID_REPORT_DESC_MOUSE(HID_REPORT_ID(HID_ITF_PROTOCOL_MOUSE)),
@@ -98,7 +99,7 @@ uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance)
     // default:
     //     return hid_report_descriptor;
     // }
-    
+
     if (instance == 1)
     {
         return hid_consumer_report_descriptor;
@@ -199,14 +200,9 @@ void printKeys()
 
 void sendKeysReport()
 {
-    // if (tud_hid_n_ready(0))
-    //     printf("nice ?\n");
-    // else
-    //     printf("nique ?\n");
-
     if (!noKeyPressed || !noKeyPressedPreviously)
-        tud_hid_keyboard_report(0, currentMod, currentKeys);
-        // tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
+        // tud_hid_keyboard_report(0, currentMod, currentKeys);
+        tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
 
     // if (!noUsagePressed || ! noUsagePressedPreviously)
     //     tud_hid_report(REPORT_ID_CONSUMER, currentUsage, sizeof(currentUsage));
