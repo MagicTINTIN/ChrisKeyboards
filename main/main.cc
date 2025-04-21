@@ -1,4 +1,4 @@
-#define CFG_TUD_HID 1
+// #define CFG_TUD_HID 2
 #include <stdlib.h>
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -38,15 +38,15 @@ static const char *TAG = "DBG";
 // };
 
 static uint8_t const hid_report_descriptor[] = {
-      TUD_HID_REPORT_DESC_KEYBOARD(),
-    // TUD_HID_REPORT_DESC_KEYBOARD(),
-    //   TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(2))
+  TUD_HID_REPORT_DESC_KEYBOARD(),
+//   TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(2))
 };
 
 static uint8_t const hid_consumer_report_descriptor[] = {
     //   TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(1)),
     //   TUD_HID_REPORT_DESC_KEYBOARD(),
     //   TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(2))
+    // TUD_HID_REPORT_DESC_CONSUMER()
     TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(2))
 
 };
@@ -70,15 +70,17 @@ const char *hid_string_descriptor[5] = {
  */
 static const uint8_t hid_configuration_descriptor[] = {
     // Configuration number, interface count, string index, total length, attribute, power in mA
-    TUD_CONFIG_DESCRIPTOR(1, 1, 0, TUSB_DESC_TOTAL_LEN, TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
+    TUD_CONFIG_DESCRIPTOR(1, 2, 0, TUSB_DESC_TOTAL_LEN, TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
 
     // Interface number, string index, boot protocol, report descriptor len, EP In address, size & polling interval
     // FIXME: booot protocol ?
     TUD_HID_DESCRIPTOR(0, 4, true, sizeof(hid_report_descriptor), 0x81, 16, 10),
     // TUD_HID_DESCRIPTOR(0, 4, true, sizeof(hid_report_descriptor), 0x81, CFG_TUD_HID_EP_BUFSIZE, 10),
     // TUD_HID_DESCRIPTOR(0, 0, false, sizeof(hid_consumer_report_descriptor), 0x81, CFG_TUD_HID_EP_BUFSIZE, 5),
-    // TUD_HID_DESCRIPTOR(0, 0, false, sizeof(hid_consumer_report_descriptor), 0x81, CFG_TUD_HID_EP_BUFSIZE, 5),
     // TUD_HID_DESCRIPTOR(1, 0, false, sizeof(hid_consumer_report_descriptor), 0x82, CFG_TUD_HID_EP_BUFSIZE, 5),
+    // TUD_HID_DESCRIPTOR(1, 0, false, sizeof(hid_consumer_report_descriptor), 0x82, 16, 10),
+    TUD_HID_DESCRIPTOR(1, 4, false, sizeof(hid_consumer_report_descriptor), 0x82, 16, 10),
+    // TUD_HID_DESCRIPTOR(1, 0, false, sizeof(hid_consumer_report_descriptor), 0x82, CFG_TUD_HID_EP_BUFSIZE, 10),
 };
 
 /********* TinyUSB HID callbacks ***************/
@@ -97,6 +99,7 @@ uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance)
     // default:
     //     return hid_report_descriptor;
     // }
+
     if (instance == 1)
     {
         return hid_consumer_report_descriptor;
@@ -197,11 +200,6 @@ void printKeys()
 
 void sendKeysReport()
 {
-    if (tud_hid_n_ready(0))
-        printf("nice ?\n");
-    else
-        printf("nique ?\n");
-
     if (!noKeyPressed || !noKeyPressedPreviously)
         // tud_hid_keyboard_report(0, currentMod, currentKeys);
         tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
@@ -274,6 +272,66 @@ void languageKeysRegistration(uint8_t k)
 {
 }
 
+void send_play_pause_3(void)
+{
+    // HID Usage for Play/Pause
+    uint16_t usage = HID_USAGE_CONSUMER_PLAY_PAUSE;
+    uint8_t buf[2] = {
+        (uint8_t)(usage & 0xFF),
+        (uint8_t)(usage >> 8)
+    };
+
+    // First: press
+    if ( tud_hid_report( 2 /*=report‑ID*/,            // matches HID_REPORT_ID(2) in your descriptor
+                        // &(uint8_t[]){ // that doesnt work, error taking address of rvalue -fPermissive
+                        //     (uint8_t)(usage & 0xFF),
+                        //     (uint8_t)(usage >> 8)
+                        // },
+                        buf,
+                        2 /*payload length in bytes—just the usage, no report‑ID*/ ) )
+    {
+        vTaskDelay(pdMS_TO_TICKS(20));
+        printf("3 playpaused ?\n");
+
+
+        // Then: release
+        tud_hid_report(2, NULL, 0);
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    else
+    {
+        printf("NOT INITIALIZED CONSUMER 3\n");
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
+void new_send_play_pause(void)
+{
+    uint16_t usage = HID_USAGE_CONSUMER_PLAY_PAUSE;
+    uint8_t rptId = 2;
+    uint8_t buf[2] = {
+        (uint8_t)(usage & 0xFF),
+        (uint8_t)(usage >> 8)
+    };
+
+    if ( tud_hid_n_ready(1) )
+    {
+        // PRESS
+        tud_hid_n_report(1, rptId, buf, sizeof(buf));
+        vTaskDelay(pdMS_TO_TICKS(20));
+        printf("2 playpaused ?\n");
+
+        // RELEASE (either send a zero-payload or explicit zeroes)
+        tud_hid_n_report(1, rptId, NULL, 0);
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    else
+    {
+        printf("NOT INITIALIZED CONSUMER 2\n");
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
 void send_play_pause(void)
 {
     uint16_t usage = HID_USAGE_CONSUMER_PLAY_PAUSE;
@@ -287,18 +345,38 @@ void send_play_pause(void)
         // tud_hid_report(2, buf, sizeof(buf));
         tud_hid_n_report(1, rptId, buf, sizeof(buf));
 
-        vTaskDelay(pdMS_TO_TICKS(10));
-        printf("playpaused ?\n");
+        vTaskDelay(pdMS_TO_TICKS(20));
+        printf("1 playpaused ?\n");
         // release
         buf[0] = buf[1] = 0;
         // tud_hid_report(2, buf, sizeof(buf));
         tud_hid_n_report(1, rptId, buf, sizeof(buf));
+
+        vTaskDelay(pdMS_TO_TICKS(100));
     } else {
-        printf("NOT INITIALIZED CONSUMER\n");
+        printf("NOT INITIALIZED CONSUMER 1\n");
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 
+void old_send_play_pause(void)
+{
+    uint16_t usage = HID_USAGE_CONSUMER_PLAY_PAUSE;
+    uint8_t buf[2] = {(uint8_t)usage, (uint8_t)(usage >> 8)};
+    uint8_t rpt_ID = 2;
+
+    // report‑ID 2 = our consumer interface
+    tud_hid_report(rpt_ID, buf, sizeof(buf));
+    vTaskDelay(pdMS_TO_TICKS(20));
+    printf("0 playpaused ?\n");
+    // release
+    buf[0] = buf[1] = 0;
+    tud_hid_report(rpt_ID, buf, sizeof(buf));
+    vTaskDelay(pdMS_TO_TICKS(100));
+}
+
+int choice = 0;
+const int MAX_CHOICES = 4;
 void hidUsageKeysRegistration(uint8_t k)
 {
     // uint16_t data = HID_USAGE_CONSUMER_SCAN_NEXT;
@@ -309,7 +387,15 @@ void hidUsageKeysRegistration(uint8_t k)
     // data = 0;
 
     // tud_hid_report(2, &data, 2);
-    send_play_pause();
+    if (choice % MAX_CHOICES == 0) 
+        send_play_pause();
+    else if (choice % MAX_CHOICES == 1) 
+        new_send_play_pause();
+    else if (choice % MAX_CHOICES == 2) 
+        old_send_play_pause();
+    else if (choice % MAX_CHOICES == 3) 
+        send_play_pause_3();
+    choice++;
 }
 
 void otherHidKeysRegistration(uint8_t k)
