@@ -6,8 +6,13 @@
 #include "tinyusb.h"
 #include "class/hid/hid_device.h"
 #include "driver/gpio.h"
+#include "driver/ledc.h"
 #include <vector>
 #include <string>
+
+#define BUZZER_GPIO    2
+#define BUZZER_CHANNEL LEDC_CHANNEL_0
+#define BUZZER_TIMER   LEDC_TIMER_0
 
 #define APP_BUTTON (GPIO_NUM_0) // Use BOOT signal by default
 #define NUMBER_OF_SIMULT_KEYS 6
@@ -124,6 +129,55 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_
 {
 }
 
+void buzzer_init()
+{
+    // ledc_timer_config_t ledc_timer = {
+    //     .speed_mode       = LEDC_LOW_SPEED_MODE,
+    //     .timer_num        = BUZZER_TIMER,
+    //     .duty_resolution  = LEDC_TIMER_10_BIT,
+    //     .freq_hz          = 1000,  // will override this later
+    //     .clk_cfg          = LEDC_AUTO_CLK
+    // };
+    ledc_timer_config_t ledc_timer = {
+    LEDC_LOW_SPEED_MODE,    // speed_mode
+        LEDC_TIMER_10_BIT,           // timer_num
+        BUZZER_TIMER,      // duty_resolution
+        5000,                   // freq_hz
+        LEDC_AUTO_CLK,          // clk_cfg
+        false                   // deconfigure (ajout si nécessaire)
+    };
+    ledc_timer_config(&ledc_timer);
+
+    
+
+    ledc_channel_config_t ledc_channel = {
+        .gpio_num       = BUZZER_GPIO,
+        .speed_mode     = LEDC_LOW_SPEED_MODE,
+        .channel        = BUZZER_CHANNEL,
+        .timer_sel      = BUZZER_TIMER,
+        .duty           = 0,
+        .hpoint         = 0
+    };
+    ledc_channel_config(&ledc_channel);
+}
+
+
+void buzzer_quack()
+{
+    // Frequency and duty can be tuned to your speaker
+    int freq = 880; // A5 note, sounds kind of like a short “quack”
+    int duty = 512; // 50% of 10-bit resolution (0–1023)
+
+    ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, freq);
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL, duty);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL);
+
+    vTaskDelay(pdMS_TO_TICKS(150));  // play for 150 ms
+
+    // stop the sound
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL, 0);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL);
+}
 /********* Application ***************/
 
 #define M_HID_UNDEF 0x0
@@ -233,6 +287,7 @@ void normalKeyPressRegistration(uint8_t k)
     if (newKeysIndex < NUMBER_OF_SIMULT_KEYS)
     {
         newKeys[newKeysIndex++] = k;
+        buzzer_quack();
         return;
     }
     bool alreadyPressed = alreadyPressedKeys[k];
@@ -245,6 +300,7 @@ void normalKeyPressRegistration(uint8_t k)
         if (!alreadyPressedKeys[newKeys[i]])
         {
             newKeys[i] = k;
+            buzzer_quack();
             return;
         }
     }
@@ -510,14 +566,16 @@ extern "C" void app_main(void)
     };
     gpio_config(&back);
 
-    gpio_config_t skip = {
-        .pin_bit_mask = 1ULL << GPIO_NUM_2,
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_ENABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    gpio_config(&skip);
+    // gpio_config_t skip = {
+    //     .pin_bit_mask = 1ULL << GPIO_NUM_2,
+    //     .mode = GPIO_MODE_INPUT,
+    //     .pull_up_en = GPIO_PULLUP_ENABLE,
+    //     .pull_down_en = GPIO_PULLDOWN_DISABLE,
+    //     .intr_type = GPIO_INTR_DISABLE,
+    // };
+    // gpio_config(&skip);
+    // OR
+    buzzer_init();
 
     // ESP_LOGI(TAG, "> back/skip buttons configured");
     // vTaskDelay(pdMS_TO_TICKS(20));
@@ -566,8 +624,8 @@ extern "C" void app_main(void)
             }
 
             // special keys
-            if (!gpio_get_level(GPIO_NUM_2))
-                printf("back\n");
+            // if (!gpio_get_level(GPIO_NUM_2))
+            //     printf("back\n");
             if (!gpio_get_level(GPIO_NUM_3))
                 printf("skip\n");
 
