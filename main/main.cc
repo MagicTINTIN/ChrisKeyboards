@@ -353,6 +353,8 @@ void modPressRegistration(uint8_t k)
         currentMod |= KEYBOARD_MODIFIER_RIGHTGUI;
 }
 
+uint32_t freqs[] = {130, 138, 146, 155, 164, 174, 185, 196, 207, 220, 233, 246, 261, 277, 293, 311, 329, 349, 369, 392, 415, 440, 466, 493, 523, 554, 587, 622, 659, 698, 739, 783, 830, 880, 932, 987, 1046, 1108, 1174, 1244, 1318, 1396, 1479, 1567, 1661, 1760, 1864, 1975, 2093, 2217, 2349, 2489, 2637, 2793, 2959, 3135, 3322, 3520, 3729, 3951, 4186, 4434, 4698, 4978, 5274, 5587, 5919, 6271, 6644, 7040, 7458, 7902};
+
 void normalKeyPressRegistration(uint8_t k)
 {
     noKeyPressed = false;
@@ -362,7 +364,7 @@ void normalKeyPressRegistration(uint8_t k)
     // printf("[(%d;%d),(%d;%d)...]\n", currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]]);
     if (!alreadyPressed)
     {
-        ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, 200+k);
+        ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, freqs[k%72]);
         ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL, 512);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL);
         buzzer_on();
