@@ -193,7 +193,7 @@ void buzzer_task(void *param)
         LEDC_LOW_SPEED_MODE, // speed_mode
         LEDC_TIMER_10_BIT,   // timer_num
         BUZZER_TIMER,        // duty_resolution
-        500,                // freq_hz
+        200,                 // freq_hz
         LEDC_AUTO_CLK,       // clk_cfg
         false                // deconfigure (ajout si nécessaire)
     };
@@ -361,7 +361,12 @@ void normalKeyPressRegistration(uint8_t k)
     // buzzer_on();
     // printf("[(%d;%d),(%d;%d)...]\n", currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]]);
     if (!alreadyPressed)
+    {
+        ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, 200+k);
+        ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL, 512);
+        ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL);
         buzzer_on();
+    }
     // buzzer_quack();
 
     // Already pressed keys are priorised
