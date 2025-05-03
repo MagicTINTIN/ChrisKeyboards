@@ -3,16 +3,19 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "tinyusb.h"
 #include "class/hid/hid_device.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include <vector>
 #include <string>
+// #include "esp_task_wdt.h"
+// #include <idf_additions.h>
 
-#define BUZZER_GPIO    2
+#define BUZZER_GPIO 2
 #define BUZZER_CHANNEL LEDC_CHANNEL_0
-#define BUZZER_TIMER   LEDC_TIMER_0
+#define BUZZER_TIMER LEDC_TIMER_0
 
 #define APP_BUTTON (GPIO_NUM_0) // Use BOOT signal by default
 #define NUMBER_OF_SIMULT_KEYS 6
@@ -139,28 +142,24 @@ void buzzer_init()
     //     .clk_cfg          = LEDC_AUTO_CLK
     // };
     ledc_timer_config_t ledc_timer = {
-    LEDC_LOW_SPEED_MODE,    // speed_mode
-        LEDC_TIMER_10_BIT,           // timer_num
-        BUZZER_TIMER,      // duty_resolution
-        5000,                   // freq_hz
-        LEDC_AUTO_CLK,          // clk_cfg
-        false                   // deconfigure (ajout si nécessaire)
+        LEDC_LOW_SPEED_MODE, // speed_mode
+        LEDC_TIMER_10_BIT,   // timer_num
+        BUZZER_TIMER,        // duty_resolution
+        5000,                // freq_hz
+        LEDC_AUTO_CLK,       // clk_cfg
+        false                // deconfigure (ajout si nécessaire)
     };
     ledc_timer_config(&ledc_timer);
 
-    
-
     ledc_channel_config_t ledc_channel = {
-        .gpio_num       = BUZZER_GPIO,
-        .speed_mode     = LEDC_LOW_SPEED_MODE,
-        .channel        = BUZZER_CHANNEL,
-        .timer_sel      = BUZZER_TIMER,
-        .duty           = 0,
-        .hpoint         = 0
-    };
+        .gpio_num = BUZZER_GPIO,
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .channel = BUZZER_CHANNEL,
+        .timer_sel = BUZZER_TIMER,
+        .duty = 0,
+        .hpoint = 0};
     ledc_channel_config(&ledc_channel);
 }
-
 
 void buzzer_quack()
 {
@@ -172,11 +171,85 @@ void buzzer_quack()
     ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL, duty);
     ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL);
 
-    vTaskDelay(pdMS_TO_TICKS(150));  // play for 150 ms
+    vTaskDelay(pdMS_TO_TICKS(150)); // play for 150 ms
 
     // stop the sound
     ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL, 0);
     ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL);
+}
+
+#define STACK_SIZE 2048
+
+// Static memory for the task
+StaticTask_t buzzerTaskTCB;
+StackType_t buzzerTaskStack[STACK_SIZE];
+
+static TaskHandle_t buzzer_task_handle = nullptr;
+static volatile bool buzzer_running = false;
+
+void buzzer_task(void *param)
+{
+    ledc_timer_config_t ledc_timer = {
+        LEDC_LOW_SPEED_MODE, // speed_mode
+        LEDC_TIMER_10_BIT,   // timer_num
+        BUZZER_TIMER,        // duty_resolution
+        500,                // freq_hz
+        LEDC_AUTO_CLK,       // clk_cfg
+        false                // deconfigure (ajout si nécessaire)
+    };
+    ledc_timer_config(&ledc_timer);
+
+    ledc_channel_config_t ledc_channel = {
+        .gpio_num = BUZZER_GPIO,
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .channel = LEDC_CHANNEL_0,
+        .intr_type = LEDC_INTR_DISABLE,
+        .timer_sel = LEDC_TIMER_0,
+        .duty = 0, // 50%
+        .hpoint = 0};
+    ledc_channel_config(&ledc_channel);
+
+    while (1)
+    {
+        if (buzzer_running)
+        {
+            // printf("+");
+            ledc_set_duty(ledc_channel.speed_mode, ledc_channel.channel, 512);
+            ledc_update_duty(ledc_channel.speed_mode, ledc_channel.channel);
+        }
+        else
+        {
+            // printf("-");
+            ledc_set_duty(ledc_channel.speed_mode, ledc_channel.channel, 0);
+            ledc_update_duty(ledc_channel.speed_mode, ledc_channel.channel);
+        }
+        vTaskDelay(pdMS_TO_TICKS(10)); // avoid busy wait
+        // fflush(stdout);
+    }
+}
+
+void start_buzzer_task()
+{
+    TaskHandle_t buzzer_task_handle = xTaskCreateStatic(
+        buzzer_task,     // Task function
+        "BuzzerTask",    // Name
+        STACK_SIZE,      // Stack size in words, not bytes
+        NULL,            // Parameter
+        5,               // Priority
+        buzzerTaskStack, // Stack array
+        &buzzerTaskTCB   // Task control block
+    );
+
+    // You can store `buzzer_task_handle` if you want to stop it later
+}
+void buzzer_on()
+{
+    buzzer_running = true;
+}
+
+void buzzer_off()
+{
+    buzzer_running = false;
 }
 /********* Application ***************/
 
@@ -250,7 +323,7 @@ void sendKeysReport()
 {
     if (!noKeyPressed || !noKeyPressedPreviously)
         tud_hid_keyboard_report(0, currentMod, currentKeys);
-        // tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
+    // tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
 
     if (!noConsumerPressed)
         tud_hid_n_report(1, CONSUMER_REPORT_ID, consumerBuffer, sizeof(consumerBuffer));
@@ -283,14 +356,20 @@ void modPressRegistration(uint8_t k)
 void normalKeyPressRegistration(uint8_t k)
 {
     noKeyPressed = false;
+    bool alreadyPressed = alreadyPressedKeys[k];
+    // printf("%d>%d<\n", k, alreadyPressedKeys[k]);
+    // buzzer_on();
+    // printf("[(%d;%d),(%d;%d)...]\n", currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]]);
+    if (!alreadyPressed)
+        buzzer_on();
+    // buzzer_quack();
+
     // Already pressed keys are priorised
     if (newKeysIndex < NUMBER_OF_SIMULT_KEYS)
     {
         newKeys[newKeysIndex++] = k;
-        buzzer_quack();
         return;
     }
-    bool alreadyPressed = alreadyPressedKeys[k];
 
     if (!alreadyPressed)
         return; // buffer already full, and not priorised, ignored
@@ -300,7 +379,6 @@ void normalKeyPressRegistration(uint8_t k)
         if (!alreadyPressedKeys[newKeys[i]])
         {
             newKeys[i] = k;
-            buzzer_quack();
             return;
         }
     }
@@ -483,7 +561,9 @@ void keyUpdateRegistration()
     for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++)
     {
         alreadyPressedKeys[currentKeys[i]] = 1;
+        // printf("{%d,%d,%d}", i, currentKeys[i], alreadyPressedKeys[currentKeys[i]]);
     }
+    // printf("<(%d;%d),(%d;%d)...>\n", currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]]);
 }
 
 static void app_send_hid_demo(void)
@@ -575,7 +655,8 @@ extern "C" void app_main(void)
     // };
     // gpio_config(&skip);
     // OR
-    buzzer_init();
+    // buzzer_init();
+    start_buzzer_task();
 
     // ESP_LOGI(TAG, "> back/skip buttons configured");
     // vTaskDelay(pdMS_TO_TICKS(20));
@@ -630,9 +711,12 @@ extern "C" void app_main(void)
                 printf("skip\n");
 
             keyUpdateRegistration();
+            // buzzer_on();
         }
 
         // delay before next scan
         vTaskDelay(pdMS_TO_TICKS(10));
+
+        buzzer_off();
     }
 }
