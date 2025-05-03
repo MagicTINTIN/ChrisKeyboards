@@ -455,7 +455,7 @@ void keyPressRegistration(uint8_t c, uint8_t r)
 
 void keyUpdateRegistration()
 {
-    for (uint8_t i = 1; i < NUMBER_OF_SIMULT_KEYS; i++)
+    for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++)
     {
         alreadyPressedKeys[currentKeys[i]] = 0;
     }
@@ -480,7 +480,7 @@ void keyUpdateRegistration()
     noConsumerPressed = true;
 
     alreadyPressedNewKeysFull = false;
-    for (uint8_t i = 1; i < NUMBER_OF_SIMULT_KEYS; i++)
+    for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++)
     {
         alreadyPressedKeys[currentKeys[i]] = 1;
     }
