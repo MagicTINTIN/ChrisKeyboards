@@ -5,3 +5,6 @@ sdkconfig.old
 managed_components
 *.lock
 answer.md
+~*
+*auto*
+*-backups
