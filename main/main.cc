@@ -361,10 +361,10 @@ void normalKeyPressRegistration(uint8_t k)
     bool alreadyPressed = alreadyPressedKeys[k];
     // printf("%d>%d<\n", k, alreadyPressedKeys[k]);
     // buzzer_on();
-    // printf("[(%d;%d),(%d;%d)...]\n", currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]]);
+    printf("k=%d -> [(%d;%d),(%d;%d),(%d;%d),(%d;%d),(%d;%d)...]\n", k, currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]], currentKeys[2], alreadyPressedKeys[currentKeys[2]], currentKeys[3], alreadyPressedKeys[currentKeys[3]], currentKeys[4], alreadyPressedKeys[currentKeys[4]]);
     if (!alreadyPressed)
     {
-        ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, freqs[k%72]);
+        ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, freqs[k % 72]);
         ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL, 512);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL);
         buzzer_on();
@@ -535,6 +535,7 @@ void keyPressRegistration(uint8_t c, uint8_t r)
     if (alreadyPressedNewKeysFull)
         return;
 
+    printf("%d | %d = ", c, r);
     normalKeyPressRegistration(matrix[c][r]);
 }
 
@@ -630,15 +631,15 @@ extern "C" void app_main(void)
         vTaskDelay(pdMS_TO_TICKS(20));
         gpio_config_t col_conf = {
             .pin_bit_mask = 1ULL << cols[i],
-            .mode = GPIO_MODE_OUTPUT,
-            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .mode = GPIO_MODE_INPUT,
+            .pull_up_en = GPIO_PULLUP_ENABLE,
             .pull_down_en = GPIO_PULLDOWN_DISABLE,
             .intr_type = GPIO_INTR_DISABLE,
         };
         gpio_config(&col_conf);
 
         // all columns are HIGH initially
-        gpio_set_level(cols[i], 1);
+        // gpio_set_level(cols[i], 1);
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 
@@ -653,20 +654,7 @@ extern "C" void app_main(void)
     };
     gpio_config(&back);
 
-    // gpio_config_t skip = {
-    //     .pin_bit_mask = 1ULL << GPIO_NUM_2,
-    //     .mode = GPIO_MODE_INPUT,
-    //     .pull_up_en = GPIO_PULLUP_ENABLE,
-    //     .pull_down_en = GPIO_PULLDOWN_DISABLE,
-    //     .intr_type = GPIO_INTR_DISABLE,
-    // };
-    // gpio_config(&skip);
-    // OR
-    // buzzer_init();
     start_buzzer_task();
-
-    // ESP_LOGI(TAG, "> back/skip buttons configured");
-    // vTaskDelay(pdMS_TO_TICKS(20));
 
     const tinyusb_config_t tusb_cfg = {
         .device_descriptor = NULL,
@@ -693,6 +681,22 @@ extern "C" void app_main(void)
                 // current to column LOW, rest HIGH
                 for (int i = 0; i < num_cols; ++i)
                 {
+                    if (i == col)
+                    {
+                        gpio_set_direction(cols[i], GPIO_MODE_OUTPUT_OD);
+                        gpio_set_level(cols[i],0);
+                    }
+                    else
+                    {
+                        gpio_config_t col_conf = {
+                            .pin_bit_mask = 1ULL << cols[i],
+                            .mode = GPIO_MODE_INPUT,
+                            .pull_up_en = GPIO_PULLUP_ENABLE,
+                            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+                            .intr_type = GPIO_INTR_DISABLE,
+                        };
+                        gpio_config(&col_conf);
+                    }
                     gpio_set_level(cols[i], i == col ? 0 : 1);
                 }
 
@@ -706,19 +710,12 @@ extern "C" void app_main(void)
                     if (val == 0)
                     {
                         keyPressRegistration(col, row);
-                        // printf("Key pressed at [col=%d, row=%d]\n", col, row);
                     }
                 }
+
+                gpio_set_direction(cols[col], GPIO_MODE_INPUT);
             }
-
-            // special keys
-            // if (!gpio_get_level(GPIO_NUM_2))
-            //     printf("back\n");
-            if (!gpio_get_level(GPIO_NUM_3))
-                printf("skip\n");
-
             keyUpdateRegistration();
-            // buzzer_on();
         }
 
         // delay before next scan
@@ -727,3 +724,43 @@ extern "C" void app_main(void)
         buzzer_off();
     }
 }
+
+/**
+ *
+ gpio_config_t back = {
+        .pin_bit_mask = 1ULL << GPIO_NUM_3,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&back);
+
+    // gpio_config_t skip = {
+    //     .pin_bit_mask = 1ULL << GPIO_NUM_2,
+    //     .mode = GPIO_MODE_INPUT,
+    //     .pull_up_en = GPIO_PULLUP_ENABLE,
+    //     .pull_down_en = GPIO_PULLDOWN_DISABLE,
+    //     .intr_type = GPIO_INTR_DISABLE,
+    // };
+    // gpio_config(&skip);
+    // OR
+    // buzzer_init();
+    start_buzzer_task();
+
+    // ESP_LOGI(TAG, "> back/skip buttons configured");
+    // vTaskDelay(pdMS_TO_TICKS(20));
+ *
+ *
+
+            // special keys
+            // if (!gpio_get_level(GPIO_NUM_2))
+            //     printf("back\n");
+            if (!gpio_get_level(GPIO_NUM_3))
+                printf("skip\n");
+
+
+            keyUpdateRegistration();
+
+            // buzzer_on();
+ */
