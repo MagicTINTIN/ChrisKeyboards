@@ -21,6 +21,11 @@
 #define NUMBER_OF_SIMULT_KEYS 6
 static const char *TAG = "DBG";
 
+typedef struct {
+    uint8_t col;
+    uint8_t row;
+} raw_key_t;
+
 #define print_bits(x)                                    \
     do                                                   \
     {                                                    \
@@ -271,7 +276,12 @@ void buzzer_off()
 #define M_HIDKEY_FIND 0x63
 #define M_HIDKEY_APPLICATION 0x64
 
-const uint8_t fnMatrix[8][17] = {
+#define KB_COLS 8
+#define KB_ROWS 17
+
+#define MAX_RAW_KEYS  (KB_COLS * KB_ROWS)
+
+const uint8_t fnMatrix[KB_COLS][KB_ROWS] = {
     {0, 0, M_HIDUC_SCAN_PREVIOUS, M_HIDMKY_FN_LOCK, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDUC_PLAY_PAUSE, 0, 0, M_HIDUC_SCAN_NEXT, 0},
     {0, 0, M_HIDKEY_VOLUME_UP, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -281,7 +291,7 @@ const uint8_t fnMatrix[8][17] = {
     {0, M_HIDMK_HEXA, M_HIDUC_AL_CALCULATOR, 0, 0, 0, 0, M_HIDKEY_APPLICATION, 0, 0, 0, 0, 0, 0, 0, 0, 0},
     {M_HIDMK_BIN, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
 
-const uint8_t matrix[8][17] = {
+const uint8_t matrix[KB_COLS][KB_ROWS] = {
     {HID_KEY_G, HID_KEY_EUROPE_2, HID_KEY_F4, HID_KEY_ESCAPE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_ALT_LEFT, HID_KEY_ARROW_UP, HID_KEY_KEYPAD_1, HID_KEY_KEYPAD_0, HID_KEY_F5, HID_KEY_APOSTROPHE, HID_KEY_NONE, HID_KEY_F6, HID_KEY_H},
     {HID_KEY_T, HID_KEY_CAPS_LOCK, HID_KEY_F3, HID_KEY_TAB, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_SHIFT_LEFT, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_KEYPAD_DECIMAL, HID_KEY_KEYPAD_DIVIDE, HID_KEY_KEYPAD_ADD, HID_KEY_BACKSPACE, HID_KEY_BRACKET_LEFT, HID_KEY_F7, HID_KEY_BRACKET_RIGHT, HID_KEY_Y},
     {HID_KEY_R, HID_KEY_W, HID_KEY_E, HID_KEY_Q, HID_KEY_PAGE_UP, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NUM_LOCK, HID_KEY_NONE, HID_KEY_KEYPAD_4, HID_KEY_KEYPAD_3, HID_KEY_NONE, HID_KEY_P, HID_KEY_O, HID_KEY_I, HID_KEY_U},
@@ -413,28 +423,6 @@ void usageRegistration(uint16_t usage)
     consumerBuffer[0] = (uint8_t)(usage & 0xFF);
     consumerBuffer[1] = (uint8_t)(usage >> 8);
     noConsumerPressed = false;
-    // uint16_t usage = HID_USAGE_CONSUMER_PLAY_PAUSE;
-    // uint8_t rptId = 2;
-    // uint8_t buf[2] = {
-    //     (uint8_t)(usage & 0xFF),
-    //     (uint8_t)(usage >> 8)};
-
-    // if (tud_hid_n_ready(1))
-    // {
-    //     // PRESS
-    //     tud_hid_n_report(1, rptId, buf, sizeof(buf));
-    //     vTaskDelay(pdMS_TO_TICKS(20));
-    //     printf("2 playpaused ?\n");
-
-    //     // RELEASE (either send a zero-payload or explicit zeroes)
-    //     tud_hid_n_report(1, rptId, NULL, 0);
-    //     vTaskDelay(pdMS_TO_TICKS(1000));
-    // }
-    // else
-    // {
-    //     printf("NOT INITIALIZED CONSUMER 2\n");
-    //     vTaskDelay(pdMS_TO_TICKS(1000));
-    // }
 }
 
 void hidUsageKeysRegistration(uint8_t k)
@@ -574,27 +562,10 @@ void keyUpdateRegistration()
     // printf("<(%d;%d),(%d;%d)...>\n", currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]]);
 }
 
-static void app_send_hid_demo(void)
-{
-    // Keyboard output: Send key 'a/A' pressed and released
-    // ESP_LOGI(TAG, "Sending Keyboard report");
-    uint8_t keycode[6] = {HID_KEY_A, 0, 0, 0, 0, 0};
-    for (unsigned char i = 0; i < 4; i++)
-    {
-        tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, keycode);
-        vTaskDelay(pdMS_TO_TICKS(50));
-        tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, NULL);
-        vTaskDelay(pdMS_TO_TICKS(20));
-    }
-    for (unsigned char i = 4; i < 0; i++)
-    {
-        uint8_t keycode[6] = {i, 0, 0, 0, 0, 0}; // HID_KEY_A
-        tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, keycode);
-        vTaskDelay(pdMS_TO_TICKS(50));
-        tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, NULL);
-        vTaskDelay(pdMS_TO_TICKS(20));
-    }
-}
+static raw_key_t raw[MAX_RAW_KEYS];
+static int raw_count;
+
+
 
 extern "C" void app_main(void)
 {
@@ -631,15 +602,15 @@ extern "C" void app_main(void)
         vTaskDelay(pdMS_TO_TICKS(20));
         gpio_config_t col_conf = {
             .pin_bit_mask = 1ULL << cols[i],
-            .mode = GPIO_MODE_INPUT,
-            .pull_up_en = GPIO_PULLUP_ENABLE,
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
             .pull_down_en = GPIO_PULLDOWN_DISABLE,
             .intr_type = GPIO_INTR_DISABLE,
         };
         gpio_config(&col_conf);
 
         // all columns are HIGH initially
-        // gpio_set_level(cols[i], 1);
+        gpio_set_level(cols[i], 1);
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 
@@ -681,22 +652,6 @@ extern "C" void app_main(void)
                 // current to column LOW, rest HIGH
                 for (int i = 0; i < num_cols; ++i)
                 {
-                    if (i == col)
-                    {
-                        gpio_set_direction(cols[i], GPIO_MODE_OUTPUT_OD);
-                        gpio_set_level(cols[i],0);
-                    }
-                    else
-                    {
-                        gpio_config_t col_conf = {
-                            .pin_bit_mask = 1ULL << cols[i],
-                            .mode = GPIO_MODE_INPUT,
-                            .pull_up_en = GPIO_PULLUP_ENABLE,
-                            .pull_down_en = GPIO_PULLDOWN_DISABLE,
-                            .intr_type = GPIO_INTR_DISABLE,
-                        };
-                        gpio_config(&col_conf);
-                    }
                     gpio_set_level(cols[i], i == col ? 0 : 1);
                 }
 
@@ -712,8 +667,6 @@ extern "C" void app_main(void)
                         keyPressRegistration(col, row);
                     }
                 }
-
-                gpio_set_direction(cols[col], GPIO_MODE_INPUT);
             }
             keyUpdateRegistration();
         }
