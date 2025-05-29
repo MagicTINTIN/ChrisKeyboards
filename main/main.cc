@@ -21,11 +21,6 @@
 #define NUMBER_OF_SIMULT_KEYS 6
 static const char *TAG = "DBG";
 
-typedef struct {
-    uint8_t col;
-    uint8_t row;
-} raw_key_t;
-
 #define print_bits(x)                                    \
     do                                                   \
     {                                                    \
@@ -279,7 +274,7 @@ void buzzer_off()
 #define KB_COLS 8
 #define KB_ROWS 17
 
-#define MAX_RAW_KEYS  (KB_COLS * KB_ROWS)
+#define MAX_RAW_KEYS (KB_COLS * KB_ROWS)
 
 const uint8_t fnMatrix[KB_COLS][KB_ROWS] = {
     {0, 0, M_HIDUC_SCAN_PREVIOUS, M_HIDMKY_FN_LOCK, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDUC_PLAY_PAUSE, 0, 0, M_HIDUC_SCAN_NEXT, 0},
@@ -562,10 +557,65 @@ void keyUpdateRegistration()
     // printf("<(%d;%d),(%d;%d)...>\n", currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]]);
 }
 
-static raw_key_t raw[MAX_RAW_KEYS];
-static int raw_count;
+uint8_t raw[KB_COLS][KB_ROWS] = {0};
 
-
+// --- Deghosting function ---
+static void deghostBlockingAndRegister()
+{
+    // search rectangles (in O(n^4) oskur 18k boucles)
+    for (int c1 = 0; c1 < KB_COLS; c1++)
+    {
+        for (int c2 = c1 + 1; c2 < KB_COLS; c2++)
+        {
+            for (int r1 = 0; r1 < KB_ROWS; r1++)
+            {
+                for (int r2 = r1 + 1; r2 < KB_ROWS; r2++)
+                {
+                    if (raw[c1][r1] && raw[c1][r2] && raw[c2][r1] && raw[c2][r2])
+                    {
+                        // four corners
+                        uint8_t k00 = matrix[c1][r1];
+                        uint8_t k01 = matrix[c1][r2];
+                        uint8_t k10 = matrix[c2][r1];
+                        uint8_t k11 = matrix[c2][r2];
+                        // collect corner states (un vrai banger cette notation ça me régale)
+                        struct
+                        {
+                            int c, r;
+                            uint8_t k;
+                            uint8_t old;
+                        } corner[4] = {
+                            {c1, r1, k00, alreadyPressedKeys[k00]},
+                            {c1, r2, k01, alreadyPressedKeys[k01]},
+                            {c2, r1, k10, alreadyPressedKeys[k10]},
+                            {c2, r2, k11, alreadyPressedKeys[k11]}};
+                        // find one with lowest 'old' (newest)
+                        int drop = 0;
+                        for (int i = 1; i < 4; i++)
+                        {
+                            if (!corner[i].old && corner[drop].old)
+                                drop = i;
+                        }
+                        // if tie
+                        raw[corner[drop].c][corner[drop].r] = 0;
+                    }
+                }
+            }
+        }
+    }
+    // register remaining
+    for (int c = 0; c < KB_COLS; c++)
+    {
+        for (int r = 0; r < KB_ROWS; r++)
+        {
+            if (raw[c][r])
+            {
+                keyPressRegistration(c, r);
+                raw[c][r] = 0;
+            }
+        }
+    }
+}
 
 extern "C" void app_main(void)
 {
@@ -664,10 +714,12 @@ extern "C" void app_main(void)
                     int val = gpio_get_level(rows[row]);
                     if (val == 0)
                     {
-                        keyPressRegistration(col, row);
+                        raw[col][row] = 1;
+                        // keyPressRegistration(col, row);
                     }
                 }
             }
+            deghostBlockingAndRegister();
             keyUpdateRegistration();
         }
 
