@@ -590,20 +590,25 @@ static void deghostBlockingAndRegister()
                             {c2, r1, k10, alreadyPressedKeys[k10]},
                             {c2, r2, k11, alreadyPressedKeys[k11]}};
                         // find one with lowest 'old' (newest)
-                        int drop = 0;
+                        int drop1 = 0;
+                        int drop2 = 1;
                         for (int i = 1; i < 4; i++)
                         {
-                            if (!corner[i].old && corner[drop].old)
-                                drop = i;
+                            if (!corner[i].old && corner[drop1].old)
+                                drop1 = i;
+                            if ((!corner[i].old && corner[drop2].old) || drop1 == drop2)
+                                drop2 = i;
                         }
-                        // if tie
-                        raw[corner[drop].c][corner[drop].r] = 0;
+                        raw[corner[drop1].c][corner[drop1].r] = 0;
+                        raw[corner[drop2].c][corner[drop2].r] = 0;
+                        printf("DROPPED: {%d,%d,%d,%d} -> blocked(%d,%d)={%d,%d}\n", k00,k01,k10,k11,drop1,drop2,corner[drop1].k, corner[drop2].k);
                     }
                 }
             }
         }
     }
     // register remaining
+    printf("--------REGISTERING KEYS--------\n");
     for (int c = 0; c < KB_COLS; c++)
     {
         for (int r = 0; r < KB_ROWS; r++)
