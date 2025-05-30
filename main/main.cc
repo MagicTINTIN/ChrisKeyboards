@@ -571,7 +571,12 @@ static void deghostBlockingAndRegister()
             {
                 for (int r2 = r1 + 1; r2 < KB_ROWS; r2++)
                 {
-                    if (raw[c1][r1] && raw[c1][r2] && raw[c2][r1] && raw[c2][r2])
+                    if (//(raw[c1][r1] && raw[c1][r2] && raw[c2][r1] && raw[c2][r2])
+                        (raw[c1][r1] && raw[c1][r2] && raw[c2][r1]) ||
+                        (raw[c1][r1] && raw[c1][r2] && raw[c2][r2]) ||
+                        (raw[c1][r1] && raw[c2][r1] && raw[c2][r2]) ||
+                        (raw[c1][r2] && raw[c2][r1] && raw[c2][r2])
+                    )
                     {
                         // four corners
                         uint8_t k00 = matrix[c1][r1];
