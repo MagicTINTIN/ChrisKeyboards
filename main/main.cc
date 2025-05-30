@@ -579,34 +579,38 @@ static void deghostBlockingAndRegister()
                     )
                     {
                         // four corners
-                        uint8_t k00 = matrix[c1][r1];
-                        uint8_t k01 = matrix[c1][r2];
-                        uint8_t k10 = matrix[c2][r1];
-                        uint8_t k11 = matrix[c2][r2];
+                        if (!alreadyPressedKeys[matrix[c1][r1]])
+                            raw[c1][r1] = 0;
+                        if (!alreadyPressedKeys[matrix[c1][r2]])
+                            raw[c1][r2] = 0;
+                        if (!alreadyPressedKeys[matrix[c2][r1]])
+                            raw[c2][r1] = 0;
+                        if (!alreadyPressedKeys[matrix[c2][r2]])
+                            raw[c2][r2] = 0;
                         // collect corner states (un vrai banger cette notation ça me régale)
-                        struct
-                        {
-                            int c, r;
-                            uint8_t k;
-                            uint8_t old;
-                        } corner[4] = {
-                            {c1, r1, k00, alreadyPressedKeys[k00]},
-                            {c1, r2, k01, alreadyPressedKeys[k01]},
-                            {c2, r1, k10, alreadyPressedKeys[k10]},
-                            {c2, r2, k11, alreadyPressedKeys[k11]}};
-                        // find one with lowest 'old' (newest)
-                        int drop1 = 0;
-                        int drop2 = 1;
-                        for (int i = 1; i < 4; i++)
-                        {
-                            if (!corner[i].old && corner[drop1].old)
-                                drop1 = i;
-                            if ((!corner[i].old && corner[drop2].old) || drop1 == drop2)
-                                drop2 = i;
-                        }
-                        raw[corner[drop1].c][corner[drop1].r] = 0;
-                        raw[corner[drop2].c][corner[drop2].r] = 0;
-                        printf("DROPPED: {%d,%d,%d,%d} -> blocked(%d,%d)={%d,%d}\n", k00,k01,k10,k11,drop1,drop2,corner[drop1].k, corner[drop2].k);
+                        // struct
+                        // {
+                        //     int c, r;
+                        //     uint8_t k;
+                        //     uint8_t old;
+                        // } corner[4] = {
+                        //     {c1, r1, k00, alreadyPressedKeys[k00]},
+                        //     {c1, r2, k01, alreadyPressedKeys[k01]},
+                        //     {c2, r1, k10, alreadyPressedKeys[k10]},
+                        //     {c2, r2, k11, alreadyPressedKeys[k11]}};
+                        // // find one with lowest 'old' (newest)
+                        // int drop1 = 0;
+                        // int drop2 = 1;
+                        // for (int i = 1; i < 4; i++)
+                        // {
+                        //     if (!corner[i].old && corner[drop1].old)
+                        //         drop1 = i;
+                        //     if ((!corner[i].old && corner[drop2].old) || drop1 == drop2)
+                        //         drop2 = i;
+                        // }
+                        // raw[corner[drop1].c][corner[drop1].r] = 0;
+                        // raw[corner[drop2].c][corner[drop2].r] = 0;
+                        // printf("DROPPED: {%d,%d,%d,%d} -> blocked(%d,%d)={%d,%d}\n", k00,k01,k10,k11,drop1,drop2,corner[drop1].k, corner[drop2].k);
                     }
                 }
             }
