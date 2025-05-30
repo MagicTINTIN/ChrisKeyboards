@@ -364,9 +364,7 @@ void normalKeyPressRegistration(uint8_t k)
 {
     noKeyPressed = false;
     bool alreadyPressed = alreadyPressedKeys[k];
-    // printf("%d>%d<\n", k, alreadyPressedKeys[k]);
-    // buzzer_on();
-    printf("k=%d;%d -> [(%d;%d),(%d;%d),(%d;%d),(%d;%d),(%d;%d)...]\n", k, alreadyPressedKeys[k], currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]], currentKeys[2], alreadyPressedKeys[currentKeys[2]], currentKeys[3], alreadyPressedKeys[currentKeys[3]], currentKeys[4], alreadyPressedKeys[currentKeys[4]]);
+    // printf("k=%d;%d -> [(%d;%d),(%d;%d),(%d;%d),(%d;%d),(%d;%d)...]\n", k, alreadyPressedKeys[k], currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]], currentKeys[2], alreadyPressedKeys[currentKeys[2]], currentKeys[3], alreadyPressedKeys[currentKeys[3]], currentKeys[4], alreadyPressedKeys[currentKeys[4]]);
     if (!alreadyPressed)
     {
         ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, freqs[k % 72]);
@@ -518,7 +516,7 @@ void keyPressRegistration(uint8_t c, uint8_t r)
     if (alreadyPressedNewKeysFull)
         return;
 
-    printf("%d | %d = ", c, r);
+    // printf("%d | %d = ", c, r);
     normalKeyPressRegistration(matrix[c][r]);
 }
 
@@ -586,15 +584,15 @@ static void deghostBlockingAndRegister()
                         (raw[c1][r1] && raw[c2][r1] && raw[c2][r2]) ||
                         (raw[c1][r2] && raw[c2][r1] && raw[c2][r2]))
                     {
-                        printf("KEYS TO DROP: (%d;%d) (%d;%d) (%d;%d) (%d;%d)\n",
-                               matrix[c1][r1],
-                               alreadyPressedKeys[matrix[c1][r1]],
-                               matrix[c1][r2],
-                               alreadyPressedKeys[matrix[c1][r2]],
-                               matrix[c2][r1],
-                               alreadyPressedKeys[matrix[c2][r1]],
-                               matrix[c2][r2],
-                               alreadyPressedKeys[matrix[c2][r2]]);
+                        // printf("KEYS TO DROP: (%d;%d) (%d;%d) (%d;%d) (%d;%d)\n",
+                        //        matrix[c1][r1],
+                        //        alreadyPressedKeys[matrix[c1][r1]],
+                        //        matrix[c1][r2],
+                        //        alreadyPressedKeys[matrix[c1][r2]],
+                        //        matrix[c2][r1],
+                        //        alreadyPressedKeys[matrix[c2][r1]],
+                        //        matrix[c2][r2],
+                        //        alreadyPressedKeys[matrix[c2][r2]]);
                         // four corners
                         if (!alreadyPressedKeys[matrix[c1][r1]])
                             filteredRaw[c1][r1] = 0;
@@ -605,45 +603,21 @@ static void deghostBlockingAndRegister()
                         if (!alreadyPressedKeys[matrix[c2][r2]])
                             filteredRaw[c2][r2] = 0;
 
-                        if (!alreadyPressedKeys[matrix[c1][r1]])
-                            printf("DROP: %d | %d = %d\n", c1, r1, matrix[c1][r1]);
-                        if (!alreadyPressedKeys[matrix[c1][r2]])
-                            printf("DROP: %d | %d = %d\n", c1, r2, matrix[c1][r2]);
-                        if (!alreadyPressedKeys[matrix[c2][r1]])
-                            printf("DROP: %d | %d = %d\n", c2, r1, matrix[c2][r1]);
-                        if (!alreadyPressedKeys[matrix[c2][r2]])
-                            printf("DROP: %d | %d = %d\n", c2, r2, matrix[c2][r2]);
-                        // collect corner states (un vrai banger cette notation ça me régale)
-                        // struct
-                        // {
-                        //     int c, r;
-                        //     uint8_t k;
-                        //     uint8_t old;
-                        // } corner[4] = {
-                        //     {c1, r1, k00, alreadyPressedKeys[k00]},
-                        //     {c1, r2, k01, alreadyPressedKeys[k01]},
-                        //     {c2, r1, k10, alreadyPressedKeys[k10]},
-                        //     {c2, r2, k11, alreadyPressedKeys[k11]}};
-                        // // find one with lowest 'old' (newest)
-                        // int drop1 = 0;
-                        // int drop2 = 1;
-                        // for (int i = 1; i < 4; i++)
-                        // {
-                        //     if (!corner[i].old && corner[drop1].old)
-                        //         drop1 = i;
-                        //     if ((!corner[i].old && corner[drop2].old) || drop1 == drop2)
-                        //         drop2 = i;
-                        // }
-                        // raw[corner[drop1].c][corner[drop1].r] = 0;
-                        // raw[corner[drop2].c][corner[drop2].r] = 0;
-                        // printf("DROPPED: {%d,%d,%d,%d} -> blocked(%d,%d)={%d,%d}\n", k00,k01,k10,k11,drop1,drop2,corner[drop1].k, corner[drop2].k);
+                        // if (!alreadyPressedKeys[matrix[c1][r1]])
+                        //     printf("DROP: %d | %d = %d\n", c1, r1, matrix[c1][r1]);
+                        // if (!alreadyPressedKeys[matrix[c1][r2]])
+                        //     printf("DROP: %d | %d = %d\n", c1, r2, matrix[c1][r2]);
+                        // if (!alreadyPressedKeys[matrix[c2][r1]])
+                        //     printf("DROP: %d | %d = %d\n", c2, r1, matrix[c2][r1]);
+                        // if (!alreadyPressedKeys[matrix[c2][r2]])
+                        //     printf("DROP: %d | %d = %d\n", c2, r2, matrix[c2][r2]);
                     }
                 }
             }
         }
     }
     // register remaining
-    printf("--------REGISTERING KEYS--------\n");
+    // printf("--------REGISTERING KEYS--------\n");
     for (int c = 0; c < KB_COLS; c++)
     {
         for (int r = 0; r < KB_ROWS; r++)
