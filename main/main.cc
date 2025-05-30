@@ -366,7 +366,7 @@ void normalKeyPressRegistration(uint8_t k)
     bool alreadyPressed = alreadyPressedKeys[k];
     // printf("%d>%d<\n", k, alreadyPressedKeys[k]);
     // buzzer_on();
-    printf("k=%d -> [(%d;%d),(%d;%d),(%d;%d),(%d;%d),(%d;%d)...]\n", k, currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]], currentKeys[2], alreadyPressedKeys[currentKeys[2]], currentKeys[3], alreadyPressedKeys[currentKeys[3]], currentKeys[4], alreadyPressedKeys[currentKeys[4]]);
+    printf("k=%d;%d -> [(%d;%d),(%d;%d),(%d;%d),(%d;%d),(%d;%d)...]\n", k, alreadyPressedKeys[k], currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]], currentKeys[2], alreadyPressedKeys[currentKeys[2]], currentKeys[3], alreadyPressedKeys[currentKeys[3]], currentKeys[4], alreadyPressedKeys[currentKeys[4]]);
     if (!alreadyPressed)
     {
         ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, freqs[k % 72]);
@@ -551,7 +551,8 @@ void keyUpdateRegistration()
     alreadyPressedNewKeysFull = false;
     for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++)
     {
-        alreadyPressedKeys[currentKeys[i]] = 1;
+        if (currentKeys[i] > 0)
+            alreadyPressedKeys[currentKeys[i]] = 1;
         // printf("{%d,%d,%d}", i, currentKeys[i], alreadyPressedKeys[currentKeys[i]]);
     }
     // printf("<(%d;%d),(%d;%d)...>\n", currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]]);
@@ -579,13 +580,21 @@ static void deghostBlockingAndRegister()
             {
                 for (int r2 = r1 + 1; r2 < KB_ROWS; r2++)
                 {
-                    if (//(raw[c1][r1] && raw[c1][r2] && raw[c2][r1] && raw[c2][r2])
+                    if ( //(raw[c1][r1] && raw[c1][r2] && raw[c2][r1] && raw[c2][r2])
                         (raw[c1][r1] && raw[c1][r2] && raw[c2][r1]) ||
                         (raw[c1][r1] && raw[c1][r2] && raw[c2][r2]) ||
                         (raw[c1][r1] && raw[c2][r1] && raw[c2][r2]) ||
-                        (raw[c1][r2] && raw[c2][r1] && raw[c2][r2])
-                    )
+                        (raw[c1][r2] && raw[c2][r1] && raw[c2][r2]))
                     {
+                        printf("KEYS TO DROP: (%d;%d) (%d;%d) (%d;%d) (%d;%d)\n",
+                               matrix[c1][r1],
+                               alreadyPressedKeys[matrix[c1][r1]],
+                               matrix[c1][r2],
+                               alreadyPressedKeys[matrix[c1][r2]],
+                               matrix[c2][r1],
+                               alreadyPressedKeys[matrix[c2][r1]],
+                               matrix[c2][r2],
+                               alreadyPressedKeys[matrix[c2][r2]]);
                         // four corners
                         if (!alreadyPressedKeys[matrix[c1][r1]])
                             filteredRaw[c1][r1] = 0;
@@ -595,6 +604,15 @@ static void deghostBlockingAndRegister()
                             filteredRaw[c2][r1] = 0;
                         if (!alreadyPressedKeys[matrix[c2][r2]])
                             filteredRaw[c2][r2] = 0;
+
+                        if (!alreadyPressedKeys[matrix[c1][r1]])
+                            printf("DROP: %d | %d = %d\n", c1, r1, matrix[c1][r1]);
+                        if (!alreadyPressedKeys[matrix[c1][r2]])
+                            printf("DROP: %d | %d = %d\n", c1, r2, matrix[c1][r2]);
+                        if (!alreadyPressedKeys[matrix[c2][r1]])
+                            printf("DROP: %d | %d = %d\n", c2, r1, matrix[c2][r1]);
+                        if (!alreadyPressedKeys[matrix[c2][r2]])
+                            printf("DROP: %d | %d = %d\n", c2, r2, matrix[c2][r2]);
                         // collect corner states (un vrai banger cette notation ça me régale)
                         // struct
                         // {
@@ -677,15 +695,15 @@ extern "C" void app_main(void)
         vTaskDelay(pdMS_TO_TICKS(20));
         gpio_config_t col_conf = {
             .pin_bit_mask = 1ULL << cols[i],
-            .mode = GPIO_MODE_OUTPUT,
-            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .mode = GPIO_MODE_INPUT,
+            .pull_up_en = GPIO_PULLUP_ENABLE,
             .pull_down_en = GPIO_PULLDOWN_DISABLE,
             .intr_type = GPIO_INTR_DISABLE,
         };
         gpio_config(&col_conf);
 
         // all columns are HIGH initially
-        gpio_set_level(cols[i], 1);
+        // gpio_set_level(cols[i], 1);
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 
@@ -727,11 +745,27 @@ extern "C" void app_main(void)
                 // current to column LOW, rest HIGH
                 for (int i = 0; i < num_cols; ++i)
                 {
-                    gpio_set_level(cols[i], i == col ? 0 : 1);
+                    if (i == col)
+                    {
+                        gpio_set_direction(cols[i], GPIO_MODE_OUTPUT_OD);
+                        gpio_set_level(cols[i],0);
+                    }
+                    else
+                    {
+                        gpio_config_t col_conf = {
+                            .pin_bit_mask = 1ULL << cols[i],
+                            .mode = GPIO_MODE_INPUT,
+                            .pull_up_en = GPIO_PULLUP_ENABLE,
+                            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+                            .intr_type = GPIO_INTR_DISABLE,
+                        };
+                        gpio_config(&col_conf);
+                    }
+                    // gpio_set_level(cols[i], i == col ? 0 : 1);
                 }
 
                 // small delay for signal to settle
-                esp_rom_delay_us(50);
+                esp_rom_delay_us(10); // seems sufficient ? check without debug prints
 
                 // read all rows
                 for (int row = 0; row < num_rows; ++row)
