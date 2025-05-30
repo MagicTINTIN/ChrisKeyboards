@@ -558,11 +558,19 @@ void keyUpdateRegistration()
 }
 
 uint8_t raw[KB_COLS][KB_ROWS] = {0};
+uint8_t filteredRaw[KB_COLS][KB_ROWS] = {0};
 
 // --- Deghosting function ---
 static void deghostBlockingAndRegister()
 {
-    // search rectangles (in O(n^4) oskur 18k boucles)
+    for (int c = 0; c < KB_COLS; c++)
+    {
+        for (int r = 0; r < KB_ROWS; r++)
+        {
+            filteredRaw[c][r] = raw[c][r];
+        }
+    }
+    // search rectangles (in O(n^4) oskur ~9k boucles)
     for (int c1 = 0; c1 < KB_COLS; c1++)
     {
         for (int c2 = c1 + 1; c2 < KB_COLS; c2++)
@@ -580,13 +588,13 @@ static void deghostBlockingAndRegister()
                     {
                         // four corners
                         if (!alreadyPressedKeys[matrix[c1][r1]])
-                            raw[c1][r1] = 0;
+                            filteredRaw[c1][r1] = 0;
                         if (!alreadyPressedKeys[matrix[c1][r2]])
-                            raw[c1][r2] = 0;
+                            filteredRaw[c1][r2] = 0;
                         if (!alreadyPressedKeys[matrix[c2][r1]])
-                            raw[c2][r1] = 0;
+                            filteredRaw[c2][r1] = 0;
                         if (!alreadyPressedKeys[matrix[c2][r2]])
-                            raw[c2][r2] = 0;
+                            filteredRaw[c2][r2] = 0;
                         // collect corner states (un vrai banger cette notation ça me régale)
                         // struct
                         // {
@@ -622,9 +630,12 @@ static void deghostBlockingAndRegister()
     {
         for (int r = 0; r < KB_ROWS; r++)
         {
-            if (raw[c][r])
+            if (filteredRaw[c][r])
             {
                 keyPressRegistration(c, r);
+            }
+            if (raw[c][r])
+            {
                 raw[c][r] = 0;
             }
         }
