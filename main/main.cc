@@ -270,6 +270,7 @@ void buzzer_off()
 #define M_HIDKEY_VOLUME_UP 0x62
 #define M_HIDKEY_FIND 0x63
 #define M_HIDKEY_APPLICATION 0x64
+#define M_HIDKEY_SCROLLLOCK 0x65
 
 #define KB_COLS 8
 #define KB_ROWS 17
@@ -280,7 +281,7 @@ const uint8_t fnMatrix[KB_COLS][KB_ROWS] = {
     {0, 0, M_HIDUC_SCAN_PREVIOUS, M_HIDMKY_FN_LOCK, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDUC_PLAY_PAUSE, 0, 0, M_HIDUC_SCAN_NEXT, 0},
     {0, 0, M_HIDKEY_VOLUME_UP, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    {0, M_HIDKEY_MUTE, M_HIDKEY_VOLUME_DOWN, 0, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDKEY_FIND, 0, 0, 0, 0},
+    {0, M_HIDKEY_MUTE, M_HIDKEY_VOLUME_DOWN, 0, 0, 0, 0, 0, 0, 0, M_HIDKEY_SCROLLLOCK, 0, M_HIDKEY_FIND, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDMK_MORSE, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDUC_BRIGHTNESS_INCREMENT, M_HIDUC_BRIGHTNESS_DECREMENT, M_HIDMK_BACKLIGHT, 0, 0, 0, 0},
     {0, M_HIDMK_HEXA, M_HIDUC_AL_CALCULATOR, 0, 0, 0, 0, M_HIDKEY_APPLICATION, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -464,7 +465,9 @@ void otherHidKeysRegistration(uint8_t k)
     case M_HIDKEY_APPLICATION:
         normalKeyPressRegistration(HID_KEY_FIND);
         return;
-
+    case M_HIDKEY_SCROLLLOCK:
+        normalKeyPressRegistration(HID_KEY_SCROLL_LOCK);
+        return;
     default:
         return;
     }
