@@ -128,9 +128,30 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 
 // Invoked when received SET_REPORT control request or
 // received data on OUT endpoint ( Report ID = 0, Type = 0 )
-void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer, uint16_t bufsize)
+// void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer, uint16_t bufsize)
+// {
+// }
+
+#define GPIO_CAPS_LED GPIO_NUM_21
+
+void tud_hid_set_report_cb(uint8_t instance,
+                           uint8_t report_id,
+                           hid_report_type_t report_type,
+                           const uint8_t* buffer,
+                           uint16_t bufsize)
 {
+    if ( instance != 0 ) return;                 // keyboard is interface 0
+    if ( report_type != HID_REPORT_TYPE_OUTPUT ) return;
+    if ( bufsize < 1 ) return;
+
+    uint8_t leds = buffer[0];
+
+    bool caps_on = leds & KEYBOARD_LED_CAPSLOCK;  // from hid.h bitmask
+    // printf("Caps LED %s\n", caps_on ? "ON" : "OFF");
+
+    gpio_set_level(GPIO_CAPS_LED, caps_on);
 }
+
 
 void buzzer_init()
 {
@@ -694,6 +715,16 @@ extern "C" void app_main(void)
         .intr_type = GPIO_INTR_DISABLE,
     };
     gpio_config(&back);
+
+    gpio_config_t capsLed = {
+        .pin_bit_mask = 1ULL << GPIO_CAPS_LED,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&capsLed);
+
 
     start_buzzer_task();
 
