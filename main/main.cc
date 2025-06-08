@@ -128,9 +128,30 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 
 // Invoked when received SET_REPORT control request or
 // received data on OUT endpoint ( Report ID = 0, Type = 0 )
-void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer, uint16_t bufsize)
+// void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer, uint16_t bufsize)
+// {
+// }
+
+#define GPIO_CAPS_LED GPIO_NUM_21
+
+void tud_hid_set_report_cb(uint8_t instance,
+                           uint8_t report_id,
+                           hid_report_type_t report_type,
+                           const uint8_t* buffer,
+                           uint16_t bufsize)
 {
+    if ( instance != 0 ) return;                 // keyboard is interface 0
+    if ( report_type != HID_REPORT_TYPE_OUTPUT ) return;
+    if ( bufsize < 1 ) return;
+
+    uint8_t leds = buffer[0];
+
+    bool caps_on = leds & KEYBOARD_LED_CAPSLOCK;  // from hid.h bitmask
+    // printf("Caps LED %s\n", caps_on ? "ON" : "OFF");
+
+    gpio_set_level(GPIO_CAPS_LED, caps_on);
 }
+
 
 void buzzer_init()
 {
@@ -270,6 +291,7 @@ void buzzer_off()
 #define M_HIDKEY_VOLUME_UP 0x62
 #define M_HIDKEY_FIND 0x63
 #define M_HIDKEY_APPLICATION 0x64
+#define M_HIDKEY_SCROLLLOCK 0x65
 
 #define KB_COLS 8
 #define KB_ROWS 17
@@ -280,7 +302,7 @@ const uint8_t fnMatrix[KB_COLS][KB_ROWS] = {
     {0, 0, M_HIDUC_SCAN_PREVIOUS, M_HIDMKY_FN_LOCK, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDUC_PLAY_PAUSE, 0, 0, M_HIDUC_SCAN_NEXT, 0},
     {0, 0, M_HIDKEY_VOLUME_UP, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    {0, M_HIDKEY_MUTE, M_HIDKEY_VOLUME_DOWN, 0, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDKEY_FIND, 0, 0, 0, 0},
+    {0, M_HIDKEY_MUTE, M_HIDKEY_VOLUME_DOWN, 0, 0, 0, 0, 0, 0, 0, M_HIDKEY_SCROLLLOCK, 0, M_HIDKEY_FIND, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDMK_MORSE, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDUC_BRIGHTNESS_INCREMENT, M_HIDUC_BRIGHTNESS_DECREMENT, M_HIDMK_BACKLIGHT, 0, 0, 0, 0},
     {0, M_HIDMK_HEXA, M_HIDUC_AL_CALCULATOR, 0, 0, 0, 0, M_HIDKEY_APPLICATION, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -464,7 +486,9 @@ void otherHidKeysRegistration(uint8_t k)
     case M_HIDKEY_APPLICATION:
         normalKeyPressRegistration(HID_KEY_FIND);
         return;
-
+    case M_HIDKEY_SCROLLLOCK:
+        normalKeyPressRegistration(HID_KEY_SCROLL_LOCK);
+        return;
     default:
         return;
     }
@@ -691,6 +715,16 @@ extern "C" void app_main(void)
         .intr_type = GPIO_INTR_DISABLE,
     };
     gpio_config(&back);
+
+    gpio_config_t capsLed = {
+        .pin_bit_mask = 1ULL << GPIO_CAPS_LED,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&capsLed);
+
 
     start_buzzer_task();
 
