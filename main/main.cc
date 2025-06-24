@@ -150,7 +150,7 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 // }
 
 #define HIDD_DEVICE_NAME "ChrisT1 Clavier"
-#define HID_DEMO_TAG "BT" // TODO: remove
+#define HID_DEMO_TAG "BNTM" // TODO: remove
 static uint16_t hid_conn_id = 0;
 static bool sec_conn = false;
 
@@ -497,6 +497,7 @@ bool noKeyPressedPreviously = true;
 bool noKeyPressed = true;
 
 uint8_t consumerBuffer[2] = {0};
+uint8_t previousConsumerBuffer[2] = {0};
 bool noConsumerPressed = true;
 bool noConsumerPressedPreviously = true;
 
@@ -518,9 +519,29 @@ void sendKeysReport()
     // tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
 
     if (!noConsumerPressed)
+    {
         tud_hid_n_report(1, CONSUMER_REPORT_ID, consumerBuffer, sizeof(consumerBuffer));
-    else if (!noConsumerPressedPreviously)
+        printf("consumer...\n");
+        if (consumerBuffer[0]) {
+            previousConsumerBuffer[0] = consumerBuffer[0];
+            esp_hidd_send_consumer_value(hid_conn_id, consumerBuffer[0], true);
+        }
+        if (consumerBuffer[1]) {
+            previousConsumerBuffer[1] = consumerBuffer[1];
+            esp_hidd_send_consumer_value(hid_conn_id, consumerBuffer[1], true);
+        }
+    }
+    else if (!noConsumerPressedPreviously) {
         tud_hid_n_report(1, CONSUMER_REPORT_ID, NULL, 0);
+        if (previousConsumerBuffer[0]) {
+            previousConsumerBuffer[0] = 0;
+            esp_hidd_send_consumer_value(hid_conn_id, previousConsumerBuffer[0], false);
+        }
+        if (previousConsumerBuffer[1]) {
+            previousConsumerBuffer[1] = 0;
+            esp_hidd_send_consumer_value(hid_conn_id, previousConsumerBuffer[1], false);
+        }
+    }
     // printKeys();
 }
 
@@ -713,7 +734,7 @@ void keyPressRegistration(uint8_t c, uint8_t r)
 
 void keyUpdateRegistration()
 {
-    // esp_hidd_send_consumer_value(hid_conn_id, HID_CONSUMER_VOLUME_UP, true); it does work lol
+    // esp_hidd_send_consumer_value(hid_conn_id, HID_CONSUMER_VOLUME_UP, true); // it does work lol
     // printf("up?");
     fflush(stdout);
     for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++)
@@ -751,10 +772,10 @@ void keyUpdateRegistration()
     for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++)
     {
         if (currentKeys[i] > 0)
-        {
             alreadyPressedKeys[currentKeys[i]] = 1;
-            esp_hidd_send_consumer_value(hid_conn_id, currentKeys[i], true);
-        }
+        // {
+        //     // esp_hidd_send_consumer_value(hid_conn_id, currentKeys[i], true);
+        // }
         // printf("{%d,%d,%d}", i, currentKeys[i], alreadyPressedKeys[currentKeys[i]]);
     }
     // printf("<(%d;%d),(%d;%d)...>\n", currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]]);
