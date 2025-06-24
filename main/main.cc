@@ -154,6 +154,9 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 static uint16_t hid_conn_id = 0;
 static bool sec_conn = false;
 
+
+#define GPIO_CAPS_LED GPIO_NUM_21
+
 static uint8_t hidd_service_uuid128[] = {
     /* LSB <--------------------------------------------------------------------------------> MSB */
     //first uuid, 16bit, [12],[13] is the value
@@ -225,6 +228,11 @@ static void hidd_event_callback(esp_hidd_cb_event_t event, esp_hidd_cb_param_t *
         case ESP_HIDD_EVENT_BLE_LED_REPORT_WRITE_EVT: {
             ESP_LOGI(HID_DEMO_TAG, "ESP_HIDD_EVENT_BLE_LED_REPORT_WRITE_EVT");
             ESP_LOG_BUFFER_HEX(HID_DEMO_TAG, param->led_write.data, param->led_write.length);
+            if (param->led_write.length < 1 ) break;
+
+            uint8_t leds =  param->led_write.data[0];
+            bool caps_on = leds & KEYBOARD_LED_CAPSLOCK;
+            gpio_set_level(GPIO_CAPS_LED, caps_on);
             break;
         }
         default:
@@ -264,7 +272,6 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
 }
 
 
-#define GPIO_CAPS_LED GPIO_NUM_21
 
 void tud_hid_set_report_cb(uint8_t instance,
                            uint8_t report_id,
@@ -686,7 +693,7 @@ void keyUpdateRegistration()
     for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++)
     {
         alreadyPressedKeys[currentKeys[i]] = 0;
-        // CHECK: improve it to only disable when we really need to disable them
+        // NOTE: improve it to only disable when we really need to disable them
         uint8_t n = 0;
         for (; n < NUMBER_OF_SIMULT_KEYS; n++)
             if (newKeys[n] == currentKeys[i])
