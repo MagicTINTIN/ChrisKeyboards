@@ -687,7 +687,12 @@ void keyUpdateRegistration()
     {
         alreadyPressedKeys[currentKeys[i]] = 0;
         // CHECK: improve it to only disable when we really need to disable them
-        esp_hidd_send_consumer_value(hid_conn_id, currentKeys[i], false);
+        uint8_t n = 0;
+        for (; n < NUMBER_OF_SIMULT_KEYS; n++)
+            if (newKeys[n] == currentKeys[i])
+                break;
+        if (n == NUMBER_OF_SIMULT_KEYS)
+            esp_hidd_send_consumer_value(hid_conn_id, currentKeys[i], false);
     }
     uint8_t *tmp = currentKeys;
     currentKeys = newKeys;
