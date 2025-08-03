@@ -8,8 +8,6 @@
 #include "class/hid/hid_device.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
-#include <vector>
-#include <string>
 // #include "esp_task_wdt.h"
 // #include <idf_additions.h>
 
@@ -20,8 +18,8 @@
 #include "esp_gap_ble_api.h"
 #include "esp_hidd_prf_api.h"
 #include "hid_dev.h"
-#include <stdio.h>
-#include <string.h>
+#include "stdio.h"
+#include "string.h"
 #include "freertos/event_groups.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
@@ -367,7 +365,7 @@ void buzzer_quack()
 StaticTask_t buzzerTaskTCB;
 StackType_t buzzerTaskStack[STACK_SIZE];
 
-static TaskHandle_t buzzer_task_handle = nullptr;
+static TaskHandle_t buzzer_task_handle = NULL;
 static volatile bool buzzer_running = false;
 
 void buzzer_task(void *param)
@@ -859,7 +857,8 @@ static void deghostBlockingAndRegister()
     }
 }
 
-extern "C" void app_main(void)
+// extern "C" 
+void app_main(void)
 {
     // GPIOs for columns (KSIs, ESP outputs)
     const gpio_num_t cols[] = {
