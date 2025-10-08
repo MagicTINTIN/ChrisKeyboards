@@ -1,4 +1,6 @@
 # ChrisKeyboards
+<img src="assets/chrisk.png" width="240px" height="240px">
+
 > I couldn’t find the keyboard I wanted, so I built it.
 
 ---
