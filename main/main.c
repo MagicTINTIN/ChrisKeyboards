@@ -53,14 +53,9 @@ static const char *TAG = "DBG";
 
 static uint8_t const hid_report_descriptor[] = {
     TUD_HID_REPORT_DESC_KEYBOARD(),
-    //   TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(2))
 };
 
 static uint8_t const hid_consumer_report_descriptor[] = {
-    //   TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(1)),
-    //   TUD_HID_REPORT_DESC_KEYBOARD(),
-    //   TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(2))
-    // TUD_HID_REPORT_DESC_CONSUMER()
     TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(2))
 
 };
@@ -91,12 +86,7 @@ static const uint8_t hid_configuration_descriptor[] = {
     // Interface number, string index, boot protocol, report descriptor len, EP In address, size & polling interval
     // FIXME: booot protocol ?
     TUD_HID_DESCRIPTOR(0, 4, true, sizeof(hid_report_descriptor), 0x81, 16, 10),
-    // TUD_HID_DESCRIPTOR(0, 4, true, sizeof(hid_report_descriptor), 0x81, CFG_TUD_HID_EP_BUFSIZE, 10),
-    // TUD_HID_DESCRIPTOR(0, 0, false, sizeof(hid_consumer_report_descriptor), 0x81, CFG_TUD_HID_EP_BUFSIZE, 5),
-    // TUD_HID_DESCRIPTOR(1, 0, false, sizeof(hid_consumer_report_descriptor), 0x82, CFG_TUD_HID_EP_BUFSIZE, 5),
-    // TUD_HID_DESCRIPTOR(1, 0, false, sizeof(hid_consumer_report_descriptor), 0x82, 16, 10),
     TUD_HID_DESCRIPTOR(1, 4, false, sizeof(hid_consumer_report_descriptor), 0x82, 16, 10),
-    // TUD_HID_DESCRIPTOR(1, 0, false, sizeof(hid_consumer_report_descriptor), 0x82, CFG_TUD_HID_EP_BUFSIZE, 10),
 };
 
 /********* TinyUSB HID callbacks ***************/
@@ -106,16 +96,6 @@ static const uint8_t hid_configuration_descriptor[] = {
 uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance)
 {
     // We use only one interface and one HID report descriptor, so we can ignore parameter 'instance'
-    // switch (instance)
-    // {
-    // case 1:
-    // case 2:
-    //     return hid_consumer_report_descriptor;
-
-    // default:
-    //     return hid_report_descriptor;
-    // }
-
     if (instance == 1)
     {
         return hid_consumer_report_descriptor;
@@ -516,7 +496,7 @@ void sendKeysReport()
     }
     // tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, currentMod, currentKeys);
 
-    if (!noConsumerPressed)
+    if (!noConsumerPressed) // consumer key pressed
     {
         tud_hid_n_report(1, CONSUMER_REPORT_ID, consumerBuffer, sizeof(consumerBuffer));
         printf("consumer...\n");
@@ -529,15 +509,18 @@ void sendKeysReport()
             esp_hidd_send_consumer_value(hid_conn_id, consumerBuffer[1], true);
         }
     }
-    else if (!noConsumerPressedPreviously) {
-        tud_hid_n_report(1, CONSUMER_REPORT_ID, NULL, 0);
+    else if (!noConsumerPressedPreviously) { // consumer key not pressed anymore
+        uint8_t zeroBuffer[sizeof(consumerBuffer)];
+        memset(zeroBuffer, 0, sizeof(zeroBuffer));
+        tud_hid_n_report(1, CONSUMER_REPORT_ID, zeroBuffer, sizeof(zeroBuffer));
+
         if (previousConsumerBuffer[0]) {
-            previousConsumerBuffer[0] = 0;
             esp_hidd_send_consumer_value(hid_conn_id, previousConsumerBuffer[0], false);
+            previousConsumerBuffer[0] = 0;
         }
         if (previousConsumerBuffer[1]) {
-            previousConsumerBuffer[1] = 0;
             esp_hidd_send_consumer_value(hid_conn_id, previousConsumerBuffer[1], false);
+            previousConsumerBuffer[1] = 0;
         }
     }
     // printKeys();

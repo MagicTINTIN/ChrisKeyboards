@@ -5,6 +5,7 @@ stepInstall() {
     echo "$(tput setaf 6)Installing ESP-IDF...$(tput sgr0)"
     git clone --recursive https://github.com/espressif/esp-idf.git ~/esp-idf
     resCompile=$?
+    ./install.sh
     cd $pwd
     if [[ $resCompile != 0 ]]; then
         echo -ne "$(tput setaf 9)$(tput bold)FAILED at STEP 0:\n$(tput sgr0)$(tput setaf 9)"
