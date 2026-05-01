@@ -57,7 +57,6 @@ static uint8_t const hid_report_descriptor[] = {
 
 static uint8_t const hid_consumer_report_descriptor[] = {
     TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(2))
-
 };
 
 #define CONSUMER_REPORT_ID 2
@@ -67,7 +66,6 @@ static uint8_t const hid_consumer_report_descriptor[] = {
  */
 const char *hid_string_descriptor[5] = {
     (char[]){4, TUSB_DESC_STRING, 0x0c, 0x04},
-    // (char[]){0x0c, 0x04}, // 0: is supported language is French, for English (0x0409)
     "MagicTINTIN",     // 1: Manufacturer
     "ChrisT1 Clavier", // 2: Product
     "123456",          // 3: Serials, should use chip ID
@@ -97,13 +95,9 @@ uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance)
 {
     // We use only one interface and one HID report descriptor, so we can ignore parameter 'instance'
     if (instance == 1)
-    {
         return hid_consumer_report_descriptor;
-    }
-    else
-    {
+    else // not sure ?
         return hid_report_descriptor;
-    }
     return hid_report_descriptor;
 }
 
@@ -117,15 +111,8 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
     (void)report_type;
     (void)buffer;
     (void)reqlen;
-
     return 0;
 }
-
-// Invoked when received SET_REPORT control request or
-// received data on OUT endpoint ( Report ID = 0, Type = 0 )
-// void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer, uint16_t bufsize)
-// {
-// }
 
 #define HIDD_DEVICE_NAME "ChrisT1 Clavier"
 #define HID_DEMO_TAG "BNTM" // TODO: remove
@@ -172,14 +159,12 @@ static esp_ble_adv_data_t hidd_adv_data = {
 };
 
 static esp_ble_adv_params_t hidd_adv_params = {
-    .adv_int_min = 0x20,
-    .adv_int_max = 0x30,
-    .adv_type = ADV_TYPE_IND,
-    .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
-    //.peer_addr            =
-    //.peer_addr_type       =
-    .channel_map = ADV_CHNL_ALL,
-    .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
+    .adv_int_min        = 0x20,
+    .adv_int_max        = 0x30,
+    .adv_type           = ADV_TYPE_IND,
+    .own_addr_type      = BLE_ADDR_TYPE_PUBLIC,
+    .channel_map        = ADV_CHNL_ALL,
+    .adv_filter_policy  = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
 };
 
 static void hidd_event_callback(esp_hidd_cb_event_t event, esp_hidd_cb_param_t *param)
@@ -187,56 +172,39 @@ static void hidd_event_callback(esp_hidd_cb_event_t event, esp_hidd_cb_param_t *
     switch (event)
     {
     case ESP_HIDD_EVENT_REG_FINISH:
-    {
         if (param->init_finish.state == ESP_HIDD_INIT_OK)
         {
-            // esp_bd_addr_t rand_addr = {0x04,0x11,0x11,0x11,0x11,0x05};
             esp_ble_gap_set_device_name(HIDD_DEVICE_NAME);
             esp_ble_gap_config_adv_data(&hidd_adv_data);
         }
         break;
-    }
     case ESP_BAT_EVENT_REG:
-    {
         break;
-    }
     case ESP_HIDD_EVENT_DEINIT_FINISH:
         break;
     case ESP_HIDD_EVENT_BLE_CONNECT:
-    {
         ESP_LOGI(HID_DEMO_TAG, "ESP_HIDD_EVENT_BLE_CONNECT");
         hid_conn_id = param->connect.conn_id;
         break;
-    }
     case ESP_HIDD_EVENT_BLE_DISCONNECT:
-    {
         sec_conn = false;
         ESP_LOGI(HID_DEMO_TAG, "ESP_HIDD_EVENT_BLE_DISCONNECT");
         esp_ble_gap_start_advertising(&hidd_adv_params);
         break;
-    }
     case ESP_HIDD_EVENT_BLE_VENDOR_REPORT_WRITE_EVT:
-    {
         ESP_LOGI(HID_DEMO_TAG, "%s, ESP_HIDD_EVENT_BLE_VENDOR_REPORT_WRITE_EVT", __func__);
         ESP_LOG_BUFFER_HEX(HID_DEMO_TAG, param->vendor_write.data, param->vendor_write.length);
         break;
-    }
     case ESP_HIDD_EVENT_BLE_LED_REPORT_WRITE_EVT:
-    {
         ESP_LOGI(HID_DEMO_TAG, "ESP_HIDD_EVENT_BLE_LED_REPORT_WRITE_EVT");
         ESP_LOG_BUFFER_HEX(HID_DEMO_TAG, param->led_write.data, param->led_write.length);
         if (param->led_write.length < 1)
             break;
-
-        uint8_t leds = param->led_write.data[0];
-        bool caps_on = leds & KEYBOARD_LED_CAPSLOCK;
-        gpio_set_level(GPIO_CAPS_LED, caps_on);
+        gpio_set_level(GPIO_CAPS_LED, param->led_write.data[0] & KEYBOARD_LED_CAPSLOCK);
         break;
-    }
     default:
         break;
     }
-    return;
 }
 
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
@@ -248,9 +216,7 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
         break;
     case ESP_GAP_BLE_SEC_REQ_EVT:
         for (int i = 0; i < ESP_BD_ADDR_LEN; i++)
-        {
             ESP_LOGD(HID_DEMO_TAG, "%x:", param->ble_security.ble_req.bd_addr[i]);
-        }
         esp_ble_gap_security_rsp(param->ble_security.ble_req.bd_addr, true);
         break;
     case ESP_GAP_BLE_AUTH_CMPL_EVT:
@@ -263,9 +229,7 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
         ESP_LOGI(HID_DEMO_TAG, "address type = %d", param->ble_security.auth_cmpl.addr_type);
         ESP_LOGI(HID_DEMO_TAG, "pair status = %s", param->ble_security.auth_cmpl.success ? "success" : "fail");
         if (!param->ble_security.auth_cmpl.success)
-        {
             ESP_LOGE(HID_DEMO_TAG, "fail reason = 0x%x", param->ble_security.auth_cmpl.fail_reason);
-        }
         break;
     default:
         break;
@@ -293,36 +257,34 @@ void tud_hid_set_report_cb(uint8_t instance,
     gpio_set_level(GPIO_CAPS_LED, caps_on);
 }
 
-void buzzer_init()
+
+void buzzer_init(void)
 {
-    // ledc_timer_config_t ledc_timer = {
-    //     .speed_mode       = LEDC_LOW_SPEED_MODE,
-    //     .timer_num        = BUZZER_TIMER,
-    //     .duty_resolution  = LEDC_TIMER_10_BIT,
-    //     .freq_hz          = 1000,  // will override this later
-    //     .clk_cfg          = LEDC_AUTO_CLK
-    // };
+    // NOTE: buzzer_init() is currently unused -> start_buzzer_task() is called instead.
+    // TODO: remove ?
     ledc_timer_config_t ledc_timer = {
-        LEDC_LOW_SPEED_MODE, // speed_mode
-        LEDC_TIMER_10_BIT,   // timer_num
-        BUZZER_TIMER,        // duty_resolution
-        5000,                // freq_hz
-        LEDC_AUTO_CLK,       // clk_cfg
-        false                // deconfigure (ajout si nécessaire)
+        .speed_mode      = LEDC_LOW_SPEED_MODE,
+        .duty_resolution = LEDC_TIMER_10_BIT,
+        .timer_num       = BUZZER_TIMER,
+        .freq_hz         = 5000,
+        .clk_cfg         = LEDC_AUTO_CLK,
+        .deconfigure     = false,
     };
     ledc_timer_config(&ledc_timer);
 
     ledc_channel_config_t ledc_channel = {
-        .gpio_num = BUZZER_GPIO,
+        .gpio_num   = BUZZER_GPIO,
         .speed_mode = LEDC_LOW_SPEED_MODE,
-        .channel = BUZZER_CHANNEL,
-        .timer_sel = BUZZER_TIMER,
-        .duty = 0,
-        .hpoint = 0};
+        .channel    = BUZZER_CHANNEL,
+        .timer_sel  = BUZZER_TIMER,
+        .duty       = 0,
+        .hpoint     = 0,
+        // intr_type removed in IDF 6.0 (field deprecated and dropped)
+    };
     ledc_channel_config(&ledc_channel);
 }
 
-void buzzer_quack()
+void buzzer_quack(void)
 {
     // Frequency and duty can be tuned to your speaker
     int freq = 880; // A5 note, sounds kind of like a short “quack”
@@ -346,22 +308,22 @@ StaticTask_t buzzerTaskTCB;
 StackType_t buzzerTaskStack[STACK_SIZE];
 
 static TaskHandle_t buzzer_task_handle = NULL;
-static volatile bool buzzer_running = false;
+static volatile bool buzzer_running    = false;
 
 void buzzer_task(void *param)
 {
     ledc_timer_config_t ledc_timer = {
-        LEDC_LOW_SPEED_MODE, // speed_mode
-        LEDC_TIMER_10_BIT,   // timer_num
-        BUZZER_TIMER,        // duty_resolution
-        200,                 // freq_hz
-        LEDC_AUTO_CLK,       // clk_cfg
-        false                // deconfigure (ajout si nécessaire)
+        .speed_mode      = LEDC_LOW_SPEED_MODE, // speed_mode
+        .duty_resolution = LEDC_TIMER_10_BIT,   // timer_num
+        .timer_num       = BUZZER_TIMER,        // duty_resolution
+        .freq_hz         = 200,                 // freq_hz
+        .clk_cfg         = LEDC_AUTO_CLK,       // clk_cfg
+        .deconfigure     = false,               // deconfigure (ajout si nécessaire)
     };
     ledc_timer_config(&ledc_timer);
 
     ledc_channel_config_t ledc_channel = {
-        .gpio_num = BUZZER_GPIO,
+        .gpio_num   = BUZZER_GPIO,
         .speed_mode = LEDC_LOW_SPEED_MODE,
         .channel = LEDC_CHANNEL_0,
         .intr_type = LEDC_INTR_DISABLE,
@@ -372,46 +334,29 @@ void buzzer_task(void *param)
 
     while (1)
     {
-        if (buzzer_running)
-        {
-            // printf("+");
-            ledc_set_duty(ledc_channel.speed_mode, ledc_channel.channel, 512);
-            ledc_update_duty(ledc_channel.speed_mode, ledc_channel.channel);
-        }
-        else
-        {
-            // printf("-");
-            ledc_set_duty(ledc_channel.speed_mode, ledc_channel.channel, 0);
-            ledc_update_duty(ledc_channel.speed_mode, ledc_channel.channel);
-        }
+        uint32_t duty = buzzer_running ? 512 : 0;
+        ledc_set_duty(ledc_channel.speed_mode, ledc_channel.channel, duty);
+        ledc_update_duty(ledc_channel.speed_mode, ledc_channel.channel);
         vTaskDelay(pdMS_TO_TICKS(10)); // avoid busy wait
-        // fflush(stdout);
     }
 }
 
-void start_buzzer_task()
+void start_buzzer_task(void)
 {
-    TaskHandle_t buzzer_task_handle = xTaskCreateStatic(
-        buzzer_task,     // Task function
-        "BuzzerTask",    // Name
-        STACK_SIZE,      // Stack size in words, not bytes
-        NULL,            // Parameter
-        5,               // Priority
-        buzzerTaskStack, // Stack array
-        &buzzerTaskTCB   // Task control block
+    buzzer_task_handle = xTaskCreateStatic(
+        buzzer_task,    // Task function
+        "BuzzerTask",   // Name
+        STACK_SIZE,     // Stack size in words, not bytes
+        NULL,           // Parameter
+        5,              // Priority
+        buzzerTaskStack,// Stack array
+        &buzzerTaskTCB  // Task control block
     );
-
-    // You can store `buzzer_task_handle` if you want to stop it later
-}
-void buzzer_on()
-{
-    buzzer_running = true;
 }
 
-void buzzer_off()
-{
-    buzzer_running = false;
-}
+void buzzer_on(void)  { buzzer_running = true;  }
+void buzzer_off(void) { buzzer_running = false; }
+
 /********* Application ***************/
 
 #define M_HID_UNDEF 0x0
@@ -435,7 +380,6 @@ void buzzer_off()
 
 #define KB_COLS 8
 #define KB_ROWS 17
-
 #define MAX_RAW_KEYS (KB_COLS * KB_ROWS)
 
 const uint8_t fnMatrix[KB_COLS][KB_ROWS] = {
@@ -446,7 +390,8 @@ const uint8_t fnMatrix[KB_COLS][KB_ROWS] = {
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDMK_MORSE, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDUC_BRIGHTNESS_INCREMENT, M_HIDUC_BRIGHTNESS_DECREMENT, M_HIDMK_BACKLIGHT, 0, 0, 0, 0},
     {0, M_HIDMK_HEXA, M_HIDUC_AL_CALCULATOR, 0, 0, 0, 0, M_HIDKEY_APPLICATION, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    {M_HIDMK_BIN, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
+    {M_HIDMK_BIN, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+};
 
 const uint8_t matrix[KB_COLS][KB_ROWS] = {
     {HID_KEY_G, HID_KEY_EUROPE_2, HID_KEY_F4, HID_KEY_ESCAPE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_ALT_LEFT, HID_KEY_ARROW_UP, HID_KEY_KEYPAD_1, HID_KEY_KEYPAD_0, HID_KEY_F5, HID_KEY_APOSTROPHE, HID_KEY_NONE, HID_KEY_F6, HID_KEY_H},
@@ -456,33 +401,38 @@ const uint8_t matrix[KB_COLS][KB_ROWS] = {
     {HID_KEY_F, HID_KEY_S, HID_KEY_D, HID_KEY_A, HID_KEY_PAGE_DOWN, HID_KEY_EUROPE_1, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_KEYPAD_ENTER, HID_KEY_KEYPAD_7, HID_KEY_KEYPAD_9, HID_KEY_NONE, HID_KEY_SEMICOLON, HID_KEY_L, HID_KEY_K, HID_KEY_J},
     {HID_KEY_4, HID_KEY_2, HID_KEY_3, HID_KEY_1, HID_KEY_GUI_LEFT, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_PRINT_SCREEN, HID_KEY_END, HID_KEY_F12, HID_KEY_F11, HID_KEY_F10, HID_KEY_0, HID_KEY_9, HID_KEY_8, HID_KEY_7},
     {HID_KEY_V, HID_KEY_X, HID_KEY_C, HID_KEY_Z, HID_KEY_KEYPAD_MULTIPLY, HID_KEY_NONE, HID_KEY_SHIFT_RIGHT, HID_KEY_CONTROL_RIGHT, HID_KEY_NONE, HID_KEY_KEYPAD_SUBTRACT, HID_KEY_KEYPAD_5, HID_KEY_KEYPAD_6, HID_KEY_ENTER, HID_KEY_BACKSLASH, HID_KEY_PERIOD, HID_KEY_COMMA, HID_KEY_M},
-    {HID_KEY_B, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_KEYPAD_2, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_ALT_RIGHT, HID_KEY_ARROW_LEFT, HID_KEY_ARROW_RIGHT, HID_KEY_ARROW_DOWN, HID_KEY_SPACE, HID_KEY_SLASH, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_N}};
+    {HID_KEY_B, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_KEYPAD_2, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_ALT_RIGHT, HID_KEY_ARROW_LEFT, HID_KEY_ARROW_RIGHT, HID_KEY_ARROW_DOWN, HID_KEY_SPACE, HID_KEY_SLASH, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_N},
+};
 
-bool fnPressed = false;
+bool fnPressed    = false;
 bool fnNewPressed = false;
-bool fnLocked = false;
+bool fnLocked     = false;
 uint8_t _currentKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
-uint8_t _newKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
-uint8_t alreadyPressedKeys[UINT8_MAX + 1] = {0};
+uint8_t _newKeysContent[NUMBER_OF_SIMULT_KEYS]     = {0};
+uint8_t alreadyPressedKeys[UINT8_MAX + 1]          = {0};
 
 uint8_t currentMod = 0;
 
 uint8_t *currentKeys = _currentKeysContent;
-uint8_t *newKeys = _newKeysContent;
-uint8_t newKeysIndex = 0;
+uint8_t *newKeys     = _newKeysContent;
+uint8_t  newKeysIndex = 0;
 bool alreadyPressedNewKeysFull = false;
-bool noKeyPressedPreviously = true;
-bool noKeyPressed = true;
+bool noKeyPressedPreviously    = true;
+bool noKeyPressed               = true;
 
-uint8_t consumerBuffer[2] = {0};
+uint8_t consumerBuffer[2]         = {0};
 uint8_t previousConsumerBuffer[2] = {0};
-bool noConsumerPressed = true;
-bool noConsumerPressedPreviously = true;
+bool noConsumerPressed            = true;
+bool noConsumerPressedPreviously  = true;
 
-void printKeys()
+void printKeys(void)
 {
-    printf("Sending\nCurr: [%x|%x|%x|%x|%x|%x]\n", currentKeys[0], currentKeys[1], currentKeys[2], currentKeys[3], currentKeys[4], currentKeys[5]);
-    printf("New: [%x|%x|%x|%x|%x|%x]\n", currentKeys[0], currentKeys[1], currentKeys[2], currentKeys[3], currentKeys[4], currentKeys[5]);
+    printf("Sending\nCurr: [%x|%x|%x|%x|%x|%x]\n",
+           currentKeys[0], currentKeys[1], currentKeys[2],
+           currentKeys[3], currentKeys[4], currentKeys[5]);
+    printf("New: [%x|%x|%x|%x|%x|%x]\n",
+           currentKeys[0], currentKeys[1], currentKeys[2],
+           currentKeys[3], currentKeys[4], currentKeys[5]);
     print_bits(currentMod);
     printf("\n");
 }
@@ -529,25 +479,24 @@ void sendKeysReport()
 void modPressRegistration(uint8_t k)
 {
     noKeyPressed = false;
-    if (k == HID_KEY_CONTROL_LEFT)
-        currentMod |= KEYBOARD_MODIFIER_LEFTCTRL;
-    else if (k == HID_KEY_SHIFT_LEFT)
-        currentMod |= KEYBOARD_MODIFIER_LEFTSHIFT;
-    else if (k == HID_KEY_ALT_LEFT)
-        currentMod |= KEYBOARD_MODIFIER_LEFTALT;
-    else if (k == HID_KEY_GUI_LEFT)
-        currentMod |= KEYBOARD_MODIFIER_LEFTGUI;
-    else if (k == HID_KEY_CONTROL_RIGHT)
-        currentMod |= KEYBOARD_MODIFIER_RIGHTCTRL;
-    else if (k == HID_KEY_SHIFT_RIGHT)
-        currentMod |= KEYBOARD_MODIFIER_RIGHTSHIFT;
-    else if (k == HID_KEY_ALT_RIGHT)
-        currentMod |= KEYBOARD_MODIFIER_RIGHTALT;
-    else if (k == HID_KEY_GUI_RIGHT)
-        currentMod |= KEYBOARD_MODIFIER_RIGHTGUI;
+    if      (k == HID_KEY_CONTROL_LEFT)  currentMod |= KEYBOARD_MODIFIER_LEFTCTRL;
+    else if (k == HID_KEY_SHIFT_LEFT)    currentMod |= KEYBOARD_MODIFIER_LEFTSHIFT;
+    else if (k == HID_KEY_ALT_LEFT)      currentMod |= KEYBOARD_MODIFIER_LEFTALT;
+    else if (k == HID_KEY_GUI_LEFT)      currentMod |= KEYBOARD_MODIFIER_LEFTGUI;
+    else if (k == HID_KEY_CONTROL_RIGHT) currentMod |= KEYBOARD_MODIFIER_RIGHTCTRL;
+    else if (k == HID_KEY_SHIFT_RIGHT)   currentMod |= KEYBOARD_MODIFIER_RIGHTSHIFT;
+    else if (k == HID_KEY_ALT_RIGHT)     currentMod |= KEYBOARD_MODIFIER_RIGHTALT;
+    else if (k == HID_KEY_GUI_RIGHT)     currentMod |= KEYBOARD_MODIFIER_RIGHTGUI;
 }
 
-uint32_t freqs[] = {130, 138, 146, 155, 164, 174, 185, 196, 207, 220, 233, 246, 261, 277, 293, 311, 329, 349, 369, 392, 415, 440, 466, 493, 523, 554, 587, 622, 659, 698, 739, 783, 830, 880, 932, 987, 1046, 1108, 1174, 1244, 1318, 1396, 1479, 1567, 1661, 1760, 1864, 1975, 2093, 2217, 2349, 2489, 2637, 2793, 2959, 3135, 3322, 3520, 3729, 3951, 4186, 4434, 4698, 4978, 5274, 5587, 5919, 6271, 6644, 7040, 7458, 7902};
+uint32_t freqs[] = {
+    130,138,146,155,164,174,185,196,207,220,233,246,
+    261,277,293,311,329,349,369,392,415,440,466,493,
+    523,554,587,622,659,698,739,783,830,880,932,987,
+    1046,1108,1174,1244,1318,1396,1479,1567,1661,1760,1864,1975,
+    2093,2217,2349,2489,2637,2793,2959,3135,3322,3520,3729,3951,
+    4186,4434,4698,4978,5274,5587,5919,6271,6644,7040,7458,7902,
+};
 
 void normalKeyPressRegistration(uint8_t k)
 {
@@ -600,6 +549,7 @@ void myKeysRegistration(uint8_t k)
 
 void languageKeysRegistration(uint8_t k)
 {
+    (void)k;
 }
 
 void usageRegistration(uint16_t usage)
@@ -613,26 +563,13 @@ void hidUsageKeysRegistration(uint8_t k)
 {
     switch (k)
     {
-    case M_HIDUC_SCAN_PREVIOUS:
-        usageRegistration(HID_USAGE_CONSUMER_SCAN_PREVIOUS);
-        return;
-    case M_HIDUC_PLAY_PAUSE:
-        usageRegistration(HID_USAGE_CONSUMER_PLAY_PAUSE);
-        return;
-    case M_HIDUC_SCAN_NEXT:
-        usageRegistration(HID_USAGE_CONSUMER_SCAN_NEXT);
-        return;
-    case M_HIDUC_BRIGHTNESS_DECREMENT:
-        usageRegistration(HID_USAGE_CONSUMER_BRIGHTNESS_DECREMENT);
-        return;
-    case M_HIDUC_BRIGHTNESS_INCREMENT:
-        usageRegistration(HID_USAGE_CONSUMER_BRIGHTNESS_INCREMENT);
-        return;
-    case M_HIDUC_AL_CALCULATOR:
-        usageRegistration(HID_USAGE_CONSUMER_AL_CALCULATOR);
-        return;
-    default:
-        return;
+    case M_HIDUC_SCAN_PREVIOUS:         usageRegistration(HID_USAGE_CONSUMER_SCAN_PREVIOUS_TRACK);         return;
+    case M_HIDUC_PLAY_PAUSE:            usageRegistration(HID_USAGE_CONSUMER_PLAY_PAUSE);            return;
+    case M_HIDUC_SCAN_NEXT:             usageRegistration(HID_USAGE_CONSUMER_SCAN_NEXT_TRACK);             return;
+    case M_HIDUC_BRIGHTNESS_DECREMENT:  usageRegistration(HID_USAGE_CONSUMER_BRIGHTNESS_DECREMENT);  return;
+    case M_HIDUC_BRIGHTNESS_INCREMENT:  usageRegistration(HID_USAGE_CONSUMER_BRIGHTNESS_INCREMENT);  return;
+    case M_HIDUC_AL_CALCULATOR:         usageRegistration(HID_USAGE_CONSUMER_AL_CALCULATOR);         return;
+    default: return;
     }
 }
 
@@ -640,26 +577,13 @@ void otherHidKeysRegistration(uint8_t k)
 {
     switch (k)
     {
-    case M_HIDKEY_MUTE:
-        normalKeyPressRegistration(HID_KEY_MUTE);
-        return;
-    case M_HIDKEY_VOLUME_DOWN:
-        normalKeyPressRegistration(HID_KEY_VOLUME_DOWN);
-        return;
-    case M_HIDKEY_VOLUME_UP:
-        normalKeyPressRegistration(HID_KEY_VOLUME_UP);
-        return;
-    case M_HIDKEY_FIND:
-        normalKeyPressRegistration(HID_KEY_FIND);
-        return;
-    case M_HIDKEY_APPLICATION:
-        normalKeyPressRegistration(HID_KEY_FIND);
-        return;
-    case M_HIDKEY_SCROLLLOCK:
-        normalKeyPressRegistration(HID_KEY_SCROLL_LOCK);
-        return;
-    default:
-        return;
+    case M_HIDKEY_MUTE:        normalKeyPressRegistration(HID_KEY_MUTE);        return;
+    case M_HIDKEY_VOLUME_DOWN: normalKeyPressRegistration(HID_KEY_VOLUME_DOWN); return;
+    case M_HIDKEY_VOLUME_UP:   normalKeyPressRegistration(HID_KEY_VOLUME_UP);   return;
+    case M_HIDKEY_FIND:        normalKeyPressRegistration(HID_KEY_FIND);        return;
+    case M_HIDKEY_APPLICATION: normalKeyPressRegistration(HID_KEY_FIND);        return;
+    case M_HIDKEY_SCROLLLOCK:  normalKeyPressRegistration(HID_KEY_SCROLL_LOCK); return;
+    default: return;
     }
 }
 
@@ -693,7 +617,8 @@ void keyPressRegistration(uint8_t c, uint8_t r)
         return;
     }
 
-    if ((fnPressed && (k < HID_KEY_F1 || k > HID_KEY_F12)) || ((fnLocked ^ fnPressed) && k >= HID_KEY_F1 && k <= HID_KEY_F12))
+    if ((fnPressed && (k < HID_KEY_F1 || k > HID_KEY_F12)) ||
+        ((fnLocked ^ fnPressed) && k >= HID_KEY_F1 && k <= HID_KEY_F12))
     {
         fnKeyPressRegistration(fnMatrix[c][r]);
         return;
@@ -713,7 +638,7 @@ void keyPressRegistration(uint8_t c, uint8_t r)
     normalKeyPressRegistration(matrix[c][r]);
 }
 
-void keyUpdateRegistration()
+void keyUpdateRegistration(void)
 {
     // esp_hidd_send_consumer_value(hid_conn_id, HID_CONSUMER_VOLUME_UP, true); // it does work lol
     // printf("up?");
@@ -730,24 +655,22 @@ void keyUpdateRegistration()
         //     esp_hidd_send_consumer_value(hid_conn_id, currentKeys[i], false);
     }
     uint8_t *tmp = currentKeys;
-    currentKeys = newKeys;
-    newKeys = tmp;
-    fnPressed = fnNewPressed;
+    currentKeys  = newKeys;
+    newKeys      = tmp;
+    fnPressed    = fnNewPressed;
     memset(newKeys, 0, NUMBER_OF_SIMULT_KEYS);
 
-    //
     sendKeysReport();
 
     newKeysIndex = 0;
-    currentMod = 0;
+    currentMod   = 0;
 
     noKeyPressedPreviously = noKeyPressed;
-    noKeyPressed = true;
-
-    fnNewPressed = false;
+    noKeyPressed           = true;
+    fnNewPressed           = false;
 
     noConsumerPressedPreviously = noConsumerPressed;
-    noConsumerPressed = true;
+    noConsumerPressed           = true;
 
     alreadyPressedNewKeysFull = false;
     for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++)
@@ -762,19 +685,16 @@ void keyUpdateRegistration()
     // printf("<(%d;%d),(%d;%d)...>\n", currentKeys[0], alreadyPressedKeys[currentKeys[0]], currentKeys[1], alreadyPressedKeys[currentKeys[1]]);
 }
 
-uint8_t raw[KB_COLS][KB_ROWS] = {0};
+uint8_t raw[KB_COLS][KB_ROWS]        = {0};
 uint8_t filteredRaw[KB_COLS][KB_ROWS] = {0};
 
 // --- Deghosting function ---
 static void deghostBlockingAndRegister()
 {
     for (int c = 0; c < KB_COLS; c++)
-    {
         for (int r = 0; r < KB_ROWS; r++)
-        {
             filteredRaw[c][r] = raw[c][r];
-        }
-    }
+
     // search rectangles (in O(n^4) oskur ~9k boucles)
     for (int c1 = 0; c1 < KB_COLS; c1++)
     {
@@ -829,57 +749,54 @@ static void deghostBlockingAndRegister()
         for (int r = 0; r < KB_ROWS; r++)
         {
             if (filteredRaw[c][r])
-            {
                 keyPressRegistration(c, r);
-            }
             if (raw[c][r])
-            {
                 raw[c][r] = 0;
-            }
         }
     }
 }
 
-// extern "C" 
 void app_main(void)
 {
     // GPIOs for columns (KSIs, ESP outputs)
     const gpio_num_t cols[] = {
         GPIO_NUM_40, GPIO_NUM_41, GPIO_NUM_42, GPIO_NUM_35,
-        GPIO_NUM_36, GPIO_NUM_45, GPIO_NUM_47, GPIO_NUM_48};
+        GPIO_NUM_36, GPIO_NUM_45, GPIO_NUM_47, GPIO_NUM_48,
+    };
     const int num_cols = sizeof(cols) / sizeof(cols[0]);
 
     // GPIOs for rows (KSOs, ESP inputs)
     const gpio_num_t rows[] = {
-        GPIO_NUM_4, GPIO_NUM_5, GPIO_NUM_6, GPIO_NUM_7, GPIO_NUM_8,
-        GPIO_NUM_9, GPIO_NUM_10, GPIO_NUM_11, GPIO_NUM_12, GPIO_NUM_13,
+        GPIO_NUM_4,  GPIO_NUM_5,  GPIO_NUM_6,  GPIO_NUM_7,  GPIO_NUM_8,
+        GPIO_NUM_9,  GPIO_NUM_10, GPIO_NUM_11, GPIO_NUM_12, GPIO_NUM_13,
         GPIO_NUM_14, GPIO_NUM_15, GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18,
-        GPIO_NUM_37, GPIO_NUM_38};
+        GPIO_NUM_37, GPIO_NUM_38,
+    };
     const int num_rows = sizeof(rows) / sizeof(rows[0]);
 
-    // --- Configuring rows ---
+    // --- Configure rows (inputs with pull-up) ---
     for (int i = 0; i < num_rows; ++i)
     {
         gpio_config_t row_conf = {
             .pin_bit_mask = 1ULL << rows[i],
-            .mode = GPIO_MODE_INPUT,
-            .pull_up_en = GPIO_PULLUP_ENABLE,
+            .mode         = GPIO_MODE_INPUT,
+            .pull_up_en   = GPIO_PULLUP_ENABLE,
             .pull_down_en = GPIO_PULLDOWN_DISABLE,
-            .intr_type = GPIO_INTR_DISABLE,
+            .intr_type    = GPIO_INTR_DISABLE,
         };
         gpio_config(&row_conf);
     }
 
-    // --- Configuring columns ---
+    // --- Configure columns (initially inputs with pull-up; driven LOW one at a time during scan) ---
     for (int i = 0; i < num_cols; ++i)
     {
         vTaskDelay(pdMS_TO_TICKS(20));
         gpio_config_t col_conf = {
             .pin_bit_mask = 1ULL << cols[i],
-            .mode = GPIO_MODE_INPUT,
-            .pull_up_en = GPIO_PULLUP_ENABLE,
+            .mode         = GPIO_MODE_INPUT,
+            .pull_up_en   = GPIO_PULLUP_ENABLE,
             .pull_down_en = GPIO_PULLDOWN_DISABLE,
-            .intr_type = GPIO_INTR_DISABLE,
+            .intr_type    = GPIO_INTR_DISABLE,
         };
         gpio_config(&col_conf);
 
@@ -890,35 +807,35 @@ void app_main(void)
 
     vTaskDelay(pdMS_TO_TICKS(20));
 
-    gpio_config_t back = {
+    gpio_config_t back_conf = {
         .pin_bit_mask = 1ULL << GPIO_NUM_3,
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .mode         = GPIO_MODE_INPUT,
+        .pull_up_en   = GPIO_PULLUP_ENABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
+        .intr_type    = GPIO_INTR_DISABLE,
     };
-    gpio_config(&back);
+    gpio_config(&back_conf);
 
-    gpio_config_t capsLed = {
+    gpio_config_t caps_led_conf = {
         .pin_bit_mask = 1ULL << GPIO_CAPS_LED,
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .mode         = GPIO_MODE_OUTPUT,
+        .pull_up_en   = GPIO_PULLUP_DISABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
+        .intr_type    = GPIO_INTR_DISABLE,
     };
-    gpio_config(&capsLed);
+    gpio_config(&caps_led_conf);
 
     start_buzzer_task();
 
     const tinyusb_config_t tusb_cfg = {
-        .device_descriptor = NULL,
-        .string_descriptor = hid_string_descriptor,
-        .string_descriptor_count = sizeof(hid_string_descriptor) / sizeof(hid_string_descriptor[0]),
-        .external_phy = false,
+        .device_descriptor        = NULL,
+        .string_descriptor        = hid_string_descriptor,
+        .string_descriptor_count  = sizeof(hid_string_descriptor) / sizeof(hid_string_descriptor[0]),
+        .external_phy             = false,
 #if (TUD_OPT_HIGH_SPEED)
         .fs_configuration_descriptor = hid_configuration_descriptor, // HID configuration descriptor for full-speed and high-speed are the same
         .hs_configuration_descriptor = hid_configuration_descriptor,
-        .qualifier_descriptor = NULL,
+        .qualifier_descriptor        = NULL,
 #else
         .configuration_descriptor = hid_configuration_descriptor,
 #endif // TUD_OPT_HIGH_SPEED
@@ -927,6 +844,12 @@ void app_main(void)
     ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
 
     // BLUETOOTH
+
+    // if re-enabling BLE in IDF 6.0, NOTE:
+    //   esp_bt_dev_set_device_name() → esp_bt_gap_set_device_name()  (Classic BT)
+    //   esp_bt_dev_get_device_name() → esp_bt_gap_get_device_name()  (Classic BT)
+    //   BLE GAP: esp_ble_gap_set_device_name() unchanged.
+
     // esp_err_t ret;
 
     // Initialize NVS.
@@ -995,7 +918,6 @@ void app_main(void)
     // esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &rsp_key, sizeof(uint8_t));
 
     // MAIN LOOP
-
     while (true)
     {
         if (tud_mounted())
@@ -1014,10 +936,10 @@ void app_main(void)
                     {
                         gpio_config_t col_conf = {
                             .pin_bit_mask = 1ULL << cols[i],
-                            .mode = GPIO_MODE_INPUT,
-                            .pull_up_en = GPIO_PULLUP_ENABLE,
+                            .mode         = GPIO_MODE_INPUT,
+                            .pull_up_en   = GPIO_PULLUP_ENABLE,
                             .pull_down_en = GPIO_PULLDOWN_DISABLE,
-                            .intr_type = GPIO_INTR_DISABLE,
+                            .intr_type    = GPIO_INTR_DISABLE,
                         };
                         gpio_config(&col_conf);
                     }
@@ -1030,12 +952,9 @@ void app_main(void)
                 // read all rows
                 for (int row = 0; row < num_rows; ++row)
                 {
-                    int val = gpio_get_level(rows[row]);
-                    if (val == 0)
-                    {
+                    if (gpio_get_level(rows[row]) == 0)
                         raw[col][row] = 1;
                         // keyPressRegistration(col, row);
-                    }
                 }
             }
             deghostBlockingAndRegister();
@@ -1044,47 +963,6 @@ void app_main(void)
 
         // delay before next scan
         vTaskDelay(pdMS_TO_TICKS(10));
-
         buzzer_off();
     }
 }
-
-/**
- *
- gpio_config_t back = {
-        .pin_bit_mask = 1ULL << GPIO_NUM_3,
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_ENABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    gpio_config(&back);
-
-    // gpio_config_t skip = {
-    //     .pin_bit_mask = 1ULL << GPIO_NUM_2,
-    //     .mode = GPIO_MODE_INPUT,
-    //     .pull_up_en = GPIO_PULLUP_ENABLE,
-    //     .pull_down_en = GPIO_PULLDOWN_DISABLE,
-    //     .intr_type = GPIO_INTR_DISABLE,
-    // };
-    // gpio_config(&skip);
-    // OR
-    // buzzer_init();
-    start_buzzer_task();
-
-    // ESP_LOGI(TAG, "> back/skip buttons configured");
-    // vTaskDelay(pdMS_TO_TICKS(20));
- *
- *
-
-            // special keys
-            // if (!gpio_get_level(GPIO_NUM_2))
-            //     printf("back\n");
-            if (!gpio_get_level(GPIO_NUM_3))
-                printf("skip\n");
-
-
-            keyUpdateRegistration();
-
-            // buzzer_on();
- */
