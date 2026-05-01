@@ -8,6 +8,8 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "tinyusb.h"
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 // #include "esp_task_wdt.h"
 // #include <idf_additions.h>
@@ -353,18 +355,28 @@ void buzzer_off(void) { buzzer_running = false; }
 
 /********* Application ***************/
 
+#define NUMBER_OF_MYKEYS 32
+
 #define M_HID_UNDEF 0x0
+
+// MY KEYS
 #define M_HIDMKY_FN_LOCK 0x1
 #define M_HIDMK_BACKLIGHT 0x2
+
+// LANGUAGES
 #define M_HIDMK_MORSE 0x20
 #define M_HIDMK_HEXA 0x21
 #define M_HIDMK_BIN 0x22
+
+// UC
 #define M_HIDUC_SCAN_PREVIOUS 0x40
 #define M_HIDUC_PLAY_PAUSE 0x41
 #define M_HIDUC_SCAN_NEXT 0x43
 #define M_HIDUC_BRIGHTNESS_DECREMENT 0x44
 #define M_HIDUC_BRIGHTNESS_INCREMENT 0x45
 #define M_HIDUC_AL_CALCULATOR 0x46
+
+// CLASSIC KEYS
 #define M_HIDKEY_MUTE 0x60
 #define M_HIDKEY_VOLUME_DOWN 0x61
 #define M_HIDKEY_VOLUME_UP 0x62
@@ -432,14 +444,17 @@ const uint8_t matrix[KB_COLS][KB_ROWS] = {
      HID_KEY_SLASH, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_N},
 };
 
+// modifiers
 bool fnPressed = false;
 bool fnNewPressed = false;
 bool fnLocked = false;
+
+uint8_t currentMod = 0;
+
+// classic keys registration
 uint8_t _currentKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
 uint8_t _newKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
 uint8_t alreadyPressedKeys[UINT8_MAX + 1] = {0};
-
-uint8_t currentMod = 0;
 
 uint8_t *currentKeys = _currentKeysContent;
 uint8_t *newKeys = _newKeysContent;
@@ -448,6 +463,19 @@ bool alreadyPressedNewKeysFull = false;
 bool noKeyPressedPreviously = true;
 bool noKeyPressed = true;
 
+// my keys registration
+uint8_t _currentMyKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
+uint8_t _newMyKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
+uint8_t alreadyPressedMyKeys[NUMBER_OF_MYKEYS] = {0};
+
+uint8_t *currentMyKeys = _currentMyKeysContent;
+uint8_t *newMyKeys = _newMyKeysContent;
+uint8_t newMyKeysIndex = 0;
+// bool alreadyPressedNewKeysFull = false;
+// bool noKeyPressedPreviously = true;
+// bool noKeyPressed = true;
+
+// consumer buffer
 uint8_t consumerBuffer[2] = {0};
 uint8_t previousConsumerBuffer[2] = {0};
 bool noConsumerPressed = true;
@@ -570,12 +598,30 @@ void normalKeyPressRegistration(uint8_t k) {
 }
 
 void myKeysRegistration(uint8_t k) {
-  switch (k) {
-  case M_HIDMKY_FN_LOCK:
-    fnLocked = !fnLocked;
+  bool alreadyPressed = alreadyPressedMyKeys[k];
+  if (!alreadyPressed)
+    switch (k) {
+    case M_HIDMKY_FN_LOCK:
+      fnLocked = !fnLocked;
+      printf("Toggle FnLock\n");
+      break;
+    default:
+      return;
+    }
+
+  if (newMyKeysIndex < NUMBER_OF_SIMULT_KEYS) {
+    newMyKeys[newMyKeysIndex++] = k;
     return;
-  default:
-    return;
+  }
+
+  if (!alreadyPressed)
+    return; // buffer already full, and not priorised, ignored
+
+  for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++) {
+    if (!alreadyPressedMyKeys[newMyKeys[i]]) {
+      newMyKeys[i] = k;
+      return;
+    }
   }
 }
 
@@ -695,6 +741,27 @@ void keyPressRegistration(uint8_t c, uint8_t r) {
   normalKeyPressRegistration(matrix[c][r]);
 }
 
+void mykeyUpdateRegistration(void) {
+  for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++) {
+    // printf("- a[%d=c[%d]]=%d ", currentMyKeys[i], i, alreadyPressedMyKeys[currentMyKeys[i]]);
+    alreadyPressedMyKeys[currentMyKeys[i]] = 0;
+    // NOTE: improve it to only disable when we really need to disable them just
+    // like in keyUpdateRegistration
+  }
+  uint8_t *tmp = currentMyKeys;
+  currentMyKeys = newMyKeys;
+  newMyKeys = tmp;
+  memset(newMyKeys, 0, NUMBER_OF_SIMULT_KEYS);
+
+  newMyKeysIndex = 0;
+
+  for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++) {
+    if (currentMyKeys[i] > 0)
+      alreadyPressedMyKeys[currentMyKeys[i]] = 1;
+  }
+  // printf("-> 0\n");
+}
+
 void keyUpdateRegistration(void) {
   // esp_hidd_send_consumer_value(hid_conn_id, HID_CONSUMER_VOLUME_UP, true); //
   // it does work lol printf("up?");
@@ -714,6 +781,8 @@ void keyUpdateRegistration(void) {
   newKeys = tmp;
   fnPressed = fnNewPressed;
   memset(newKeys, 0, NUMBER_OF_SIMULT_KEYS);
+
+  mykeyUpdateRegistration();
 
   sendKeysReport();
 
