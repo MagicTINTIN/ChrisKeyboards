@@ -14,6 +14,7 @@
 // #include "esp_task_wdt.h"
 // #include <idf_additions.h>
 
+#include "constants.h"
 #include "esp_bt.h"
 #include "esp_bt_defs.h"
 #include "esp_bt_device.h"
@@ -54,14 +55,30 @@ static const char *TAG = "DBG";
 #define TUSB_DESC_TOTAL_LEN                                                    \
   (TUD_CONFIG_DESC_LEN + CFG_TUD_HID * TUD_HID_DESC_LEN)
 
-static uint8_t const hid_report_descriptor[] = {
+// mouse and keyboard
+static uint8_t const hid_mouse_keyboard_report_descriptor[] = {
     TUD_HID_REPORT_DESC_KEYBOARD(),
+    // TUD_HID_REPORT_DESC_MOUSE(), // TODO: 
 };
 
+// keyboard consumer (next/previous keys)
 static uint8_t const hid_consumer_report_descriptor[] = {
     TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(2))};
 
 #define CONSUMER_REPORT_ID 2
+
+// dummy
+static const uint8_t hid_dummy1_descriptor[] = {
+    HID_USAGE_PAGE_N(HID_USAGE_PAGE_VENDOR, 2),
+    HID_USAGE(0x01),
+    HID_COLLECTION(HID_COLLECTION_APPLICATION),
+    HID_USAGE(0x01),
+    HID_LOGICAL_MIN(0),
+    HID_LOGICAL_MAX_N(255, 2),
+    HID_REPORT_SIZE(8),
+    HID_REPORT_COUNT(1),
+    HID_INPUT(HID_DATA | HID_VARIABLE | HID_ABSOLUTE),
+    HID_COLLECTION_END};
 
 /**
  * @brief String descriptor
@@ -83,15 +100,20 @@ const char *hid_string_descriptor[5] = {
 static const uint8_t hid_configuration_descriptor[] = {
     // Configuration number, interface count, string index, total length,
     // attribute, power in mA
-    TUD_CONFIG_DESCRIPTOR(1, 2, 0, TUSB_DESC_TOTAL_LEN,
+    TUD_CONFIG_DESCRIPTOR(1, 5, 0, TUSB_DESC_TOTAL_LEN,
                           TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
 
     // Interface number, string index, boot protocol, report descriptor len, EP
     // In address, size & polling interval
     // FIXME: booot protocol ?
-    TUD_HID_DESCRIPTOR(0, 4, true, sizeof(hid_report_descriptor), 0x81, 16, 10),
-    TUD_HID_DESCRIPTOR(1, 4, false, sizeof(hid_consumer_report_descriptor),
-                       0x82, 16, 10),
+    TUD_HID_DESCRIPTOR(HID_ITF_MOUSEKYB, 4, true,
+                       sizeof(hid_mouse_keyboard_report_descriptor), 0x81, 16, 10),
+    TUD_HID_DESCRIPTOR(HID_ITF_CONSUMER, 4, false,
+                       sizeof(hid_consumer_report_descriptor), 0x82, 16, 10),
+    TUD_HID_DESCRIPTOR(HID_ITF_GAMEPAD1, 4, false, sizeof(hid_dummy1_descriptor),
+                       0x83, 16, 10),
+    TUD_HID_DESCRIPTOR(HID_ITF_GAMEPAD2, 4, false, sizeof(hid_dummy1_descriptor), 0x84, 16,
+                       10),
 };
 
 /********* TinyUSB HID callbacks ***************/
@@ -99,14 +121,18 @@ static const uint8_t hid_configuration_descriptor[] = {
 // Invoked when received GET HID REPORT DESCRIPTOR request
 // Application return pointer to descriptor, whose contents must exist long
 // enough for transfer to complete
-uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance) {
-  // We use only one interface and one HID report descriptor, so we can ignore
-  // parameter 'instance'
-  if (instance == 1)
-    return hid_consumer_report_descriptor;
-  else // not sure ?
-    return hid_report_descriptor;
-  return hid_report_descriptor;
+uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance)
+{
+    switch (instance) {
+        case HID_ITF_MOUSEKYB: return hid_mouse_keyboard_report_descriptor;
+        case HID_ITF_CONSUMER: return hid_consumer_report_descriptor;
+        case HID_ITF_GAMEPAD1: return hid_dummy1_descriptor;
+        case HID_ITF_GAMEPAD2: return hid_dummy1_descriptor;
+        // case HID_ITF_GAMEPAD1:  return g_gamepad_enabled > 0
+        //                               ? hid_gamepad_report_descriptor
+        //                               : hid_dummy1_descriptor;
+        default:               return hid_mouse_keyboard_report_descriptor;
+    }
 }
 
 // Invoked when received GET_REPORT control request
@@ -743,7 +769,8 @@ void keyPressRegistration(uint8_t c, uint8_t r) {
 
 void mykeyUpdateRegistration(void) {
   for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++) {
-    // printf("- a[%d=c[%d]]=%d ", currentMyKeys[i], i, alreadyPressedMyKeys[currentMyKeys[i]]);
+    // printf("- a[%d=c[%d]]=%d ", currentMyKeys[i], i,
+    // alreadyPressedMyKeys[currentMyKeys[i]]);
     alreadyPressedMyKeys[currentMyKeys[i]] = 0;
     // NOTE: improve it to only disable when we really need to disable them just
     // like in keyUpdateRegistration
