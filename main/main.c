@@ -1,12 +1,14 @@
 // #define CFG_TUD_HID 2
 #include "class/hid/hid.h"
 #include "class/hid/hid_device.h"
+#include "configuration.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "nvs_flash.h"
 #include "tinyusb.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -15,30 +17,21 @@
 // #include <idf_additions.h>
 
 #include "constants.h"
-#include "esp_bt.h"
 #include "esp_bt_defs.h"
-#include "esp_bt_device.h"
-#include "esp_bt_main.h"
-#include "esp_event.h"
 #include "esp_gap_ble_api.h"
-#include "esp_gatt_defs.h"
-#include "esp_gatts_api.h"
 #include "esp_hidd_prf_api.h"
-#include "esp_system.h"
-#include "esp_wifi.h"
+// #include "esp_bt_device.h"
+// #include "esp_bt.h"
+// #include "esp_bt_main.h"
+// #include "esp_event.h"
+// #include "esp_gatts_api.h"
+// #include "esp_gatt_defs.h"
+// #include "esp_system.h"
+// #include "hid_dev.h"
+// #include "nvs_flash.h"
 #include "freertos/event_groups.h"
-#include "hid_dev.h"
-#include "nvs_flash.h"
 #include "stdio.h"
 #include "string.h"
-
-#define BUZZER_GPIO 2
-#define BUZZER_CHANNEL LEDC_CHANNEL_0
-#define BUZZER_TIMER LEDC_TIMER_0
-
-#define APP_BUTTON (GPIO_NUM_0) // Use BOOT signal by default
-#define NUMBER_OF_SIMULT_KEYS 6
-static const char *TAG = "DBG";
 
 #define print_bits(x)                                                          \
   do {                                                                         \
@@ -58,7 +51,7 @@ static const char *TAG = "DBG";
 // mouse and keyboard
 static uint8_t const hid_mouse_keyboard_report_descriptor[] = {
     TUD_HID_REPORT_DESC_KEYBOARD(),
-    // TUD_HID_REPORT_DESC_MOUSE(), // TODO: 
+    // TUD_HID_REPORT_DESC_MOUSE(), // TODO:
 };
 
 // keyboard consumer (next/previous keys)
@@ -107,32 +100,39 @@ static const uint8_t hid_configuration_descriptor[] = {
     // In address, size & polling interval
     // FIXME: booot protocol ?
     TUD_HID_DESCRIPTOR(HID_ITF_MOUSEKYB, 4, true,
-                       sizeof(hid_mouse_keyboard_report_descriptor), 0x81, 16, 10),
+                       sizeof(hid_mouse_keyboard_report_descriptor), 0x81, 16,
+                       10),
     TUD_HID_DESCRIPTOR(HID_ITF_CONSUMER, 4, false,
                        sizeof(hid_consumer_report_descriptor), 0x82, 16, 10),
-    TUD_HID_DESCRIPTOR(HID_ITF_GAMEPAD1, 4, false, sizeof(hid_dummy1_descriptor),
-                       0x83, 16, 10),
-    TUD_HID_DESCRIPTOR(HID_ITF_GAMEPAD2, 4, false, sizeof(hid_dummy1_descriptor), 0x84, 16,
-                       10),
+    TUD_HID_DESCRIPTOR(HID_ITF_GAMEPAD1, 4, false,
+                       sizeof(hid_dummy1_descriptor), 0x83, 16, 10),
+    TUD_HID_DESCRIPTOR(HID_ITF_GAMEPAD2, 4, false,
+                       sizeof(hid_dummy1_descriptor), 0x84, 16, 10),
 };
+
+static uint8_t g_enabled_gamepads = 0;
 
 /********* TinyUSB HID callbacks ***************/
 
 // Invoked when received GET HID REPORT DESCRIPTOR request
 // Application return pointer to descriptor, whose contents must exist long
 // enough for transfer to complete
-uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance)
-{
-    switch (instance) {
-        case HID_ITF_MOUSEKYB: return hid_mouse_keyboard_report_descriptor;
-        case HID_ITF_CONSUMER: return hid_consumer_report_descriptor;
-        case HID_ITF_GAMEPAD1: return hid_dummy1_descriptor;
-        case HID_ITF_GAMEPAD2: return hid_dummy1_descriptor;
-        // case HID_ITF_GAMEPAD1:  return g_gamepad_enabled > 0
-        //                               ? hid_gamepad_report_descriptor
-        //                               : hid_dummy1_descriptor;
-        default:               return hid_mouse_keyboard_report_descriptor;
-    }
+uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance) {
+  switch (instance) {
+  case HID_ITF_MOUSEKYB:
+    return hid_mouse_keyboard_report_descriptor;
+  case HID_ITF_CONSUMER:
+    return hid_consumer_report_descriptor;
+  case HID_ITF_GAMEPAD1:
+    return hid_dummy1_descriptor;
+  case HID_ITF_GAMEPAD2:
+    return hid_dummy1_descriptor;
+  // case HID_ITF_GAMEPAD1:  return g_gamepad_enabled > 0
+  //                               ? hid_gamepad_report_descriptor
+  //                               : hid_dummy1_descriptor;
+  default:
+    return hid_mouse_keyboard_report_descriptor;
+  }
 }
 
 // Invoked when received GET_REPORT control request
@@ -149,12 +149,8 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id,
   return 0;
 }
 
-#define HIDD_DEVICE_NAME "ChrisT1 Clavier"
-#define HID_DEMO_TAG "BNTM" // TODO: remove
 static uint16_t hid_conn_id = 0;
 static bool sec_conn = false;
-
-#define GPIO_CAPS_LED GPIO_NUM_21
 
 static uint8_t hidd_service_uuid128[] = {
     /* LSB
@@ -206,24 +202,22 @@ static void hidd_event_callback(esp_hidd_cb_event_t event,
   case ESP_HIDD_EVENT_DEINIT_FINISH:
     break;
   case ESP_HIDD_EVENT_BLE_CONNECT:
-    ESP_LOGI(HID_DEMO_TAG, "ESP_HIDD_EVENT_BLE_CONNECT");
+    ESP_LOGI(TAG, "ESP_HIDD_EVENT_BLE_CONNECT");
     hid_conn_id = param->connect.conn_id;
     break;
   case ESP_HIDD_EVENT_BLE_DISCONNECT:
     sec_conn = false;
-    ESP_LOGI(HID_DEMO_TAG, "ESP_HIDD_EVENT_BLE_DISCONNECT");
+    ESP_LOGI(TAG, "ESP_HIDD_EVENT_BLE_DISCONNECT");
     esp_ble_gap_start_advertising(&hidd_adv_params);
     break;
   case ESP_HIDD_EVENT_BLE_VENDOR_REPORT_WRITE_EVT:
-    ESP_LOGI(HID_DEMO_TAG, "%s, ESP_HIDD_EVENT_BLE_VENDOR_REPORT_WRITE_EVT",
-             __func__);
-    ESP_LOG_BUFFER_HEX(HID_DEMO_TAG, param->vendor_write.data,
+    ESP_LOGI(TAG, "%s, ESP_HIDD_EVENT_BLE_VENDOR_REPORT_WRITE_EVT", __func__);
+    ESP_LOG_BUFFER_HEX(TAG, param->vendor_write.data,
                        param->vendor_write.length);
     break;
   case ESP_HIDD_EVENT_BLE_LED_REPORT_WRITE_EVT:
-    ESP_LOGI(HID_DEMO_TAG, "ESP_HIDD_EVENT_BLE_LED_REPORT_WRITE_EVT");
-    ESP_LOG_BUFFER_HEX(HID_DEMO_TAG, param->led_write.data,
-                       param->led_write.length);
+    ESP_LOGI(TAG, "ESP_HIDD_EVENT_BLE_LED_REPORT_WRITE_EVT");
+    ESP_LOG_BUFFER_HEX(TAG, param->led_write.data, param->led_write.length);
     if (param->led_write.length < 1)
       break;
     gpio_set_level(GPIO_CAPS_LED,
@@ -242,7 +236,7 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event,
     break;
   case ESP_GAP_BLE_SEC_REQ_EVT:
     for (int i = 0; i < ESP_BD_ADDR_LEN; i++)
-      ESP_LOGD(HID_DEMO_TAG, "%x:", param->ble_security.ble_req.bd_addr[i]);
+      ESP_LOGD(TAG, "%x:", param->ble_security.ble_req.bd_addr[i]);
     esp_ble_gap_security_rsp(param->ble_security.ble_req.bd_addr, true);
     break;
   case ESP_GAP_BLE_AUTH_CMPL_EVT:
@@ -250,16 +244,15 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event,
     esp_bd_addr_t bd_addr;
     memcpy(bd_addr, param->ble_security.auth_cmpl.bd_addr,
            sizeof(esp_bd_addr_t));
-    ESP_LOGI(HID_DEMO_TAG, "remote BD_ADDR: %08x%04x",
+    ESP_LOGI(TAG, "remote BD_ADDR: %08x%04x",
              (bd_addr[0] << 24) + (bd_addr[1] << 16) + (bd_addr[2] << 8) +
                  bd_addr[3],
              (bd_addr[4] << 8) + bd_addr[5]);
-    ESP_LOGI(HID_DEMO_TAG, "address type = %d",
-             param->ble_security.auth_cmpl.addr_type);
-    ESP_LOGI(HID_DEMO_TAG, "pair status = %s",
+    ESP_LOGI(TAG, "address type = %d", param->ble_security.auth_cmpl.addr_type);
+    ESP_LOGI(TAG, "pair status = %s",
              param->ble_security.auth_cmpl.success ? "success" : "fail");
     if (!param->ble_security.auth_cmpl.success)
-      ESP_LOGE(HID_DEMO_TAG, "fail reason = 0x%x",
+      ESP_LOGE(TAG, "fail reason = 0x%x",
                param->ble_security.auth_cmpl.fail_reason);
     break;
   default:
@@ -381,45 +374,8 @@ void buzzer_off(void) { buzzer_running = false; }
 
 /********* Application ***************/
 
-#define NUMBER_OF_MYKEYS 32
-
-#define M_HID_UNDEF 0x0
-
-// MY KEYS
-#define M_HIDMKY_FN_LOCK 0x1
-#define M_HIDMK_BACKLIGHT 0x2
-
-// LANGUAGES
-#define M_HIDMK_MORSE 0x20
-#define M_HIDMK_HEXA 0x21
-#define M_HIDMK_BIN 0x22
-
-// UC
-#define M_HIDUC_SCAN_PREVIOUS 0x40
-#define M_HIDUC_PLAY_PAUSE 0x41
-#define M_HIDUC_SCAN_NEXT 0x43
-#define M_HIDUC_BRIGHTNESS_DECREMENT 0x44
-#define M_HIDUC_BRIGHTNESS_INCREMENT 0x45
-#define M_HIDUC_AL_CALCULATOR 0x46
-
-// CLASSIC KEYS
-#define M_HIDKEY_MUTE 0x60
-#define M_HIDKEY_VOLUME_DOWN 0x61
-#define M_HIDKEY_VOLUME_UP 0x62
-#define M_HIDKEY_FIND 0x63
-#define M_HIDKEY_APPLICATION 0x64
-#define M_HIDKEY_SCROLLLOCK 0x65
-#define M_HIDKEY_ARROW_PAGE_DOWN 0X66
-#define M_HIDKEY_ARROW_PAGE_UP 0X67
-#define M_HIDKEY_ARROW_BEGIN 0X68
-#define M_HIDKEY_ARROW_END 0X69
-
-#define KB_COLS 8
-#define KB_ROWS 17
-#define MAX_RAW_KEYS (KB_COLS * KB_ROWS)
-
 const uint8_t fnMatrix[KB_COLS][KB_ROWS] = {
-    {0, 0, M_HIDUC_SCAN_PREVIOUS, M_HIDMKY_FN_LOCK, 0, 0, 0, 0, 0,
+    {M_HIDMK_GAMEPADS, 0, M_HIDUC_SCAN_PREVIOUS, M_HIDMKY_FN_LOCK, 0, 0, 0, 0, 0,
      M_HIDKEY_ARROW_PAGE_UP, 0, 0, M_HIDUC_PLAY_PAUSE, 0, 0, M_HIDUC_SCAN_NEXT,
      0},
     {0, 0, M_HIDKEY_VOLUME_UP, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -630,6 +586,9 @@ void myKeysRegistration(uint8_t k) {
     case M_HIDMKY_FN_LOCK:
       fnLocked = !fnLocked;
       printf("Toggle FnLock\n");
+      break;
+    case M_HIDMK_GAMEPADS:
+      cfg_toggle_gamepad_interfaces(g_enabled_gamepads);
       break;
     default:
       return;
@@ -902,6 +861,23 @@ static void deghostBlockingAndRegister() {
 }
 
 void app_main(void) {
+  // get current configuration
+  esp_err_t ret = nvs_flash_init();
+  if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
+      ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    ESP_LOGW(TAG, "NVS partition needs erase, reformatting…");
+    ESP_ERROR_CHECK(nvs_flash_erase());
+    ret = nvs_flash_init();
+  }
+  ESP_ERROR_CHECK(ret);
+
+  /* 2 ── Read config BEFORE tinyusb_driver_install() because
+   *      tud_hid_descriptor_report_cb fires during enumeration,
+   *      which starts inside that call. */
+  g_enabled_gamepads = cfg_read_enabled_gamepads();
+  ESP_LOGI(TAG, "Config: enabled_gamepads=%d",
+           g_enabled_gamepads);
+
   // GPIOs for columns (KSIs, ESP outputs)
   const gpio_num_t cols[] = {
       GPIO_NUM_40, GPIO_NUM_41, GPIO_NUM_42, GPIO_NUM_35,
@@ -1015,34 +991,34 @@ void app_main(void) {
   // ret = esp_bt_controller_init(&bt_cfg);
   // if (ret)
   // {
-  //     ESP_LOGE(HID_DEMO_TAG, "%s initialize controller failed", __func__);
+  //     ESP_LOGE(TAG, "%s initialize controller failed", __func__);
   //     return;
   // }
 
   // ret = esp_bt_controller_enable(ESP_BT_MODE_BLE);
   // if (ret)
   // {
-  //     ESP_LOGE(HID_DEMO_TAG, "%s enable controller failed", __func__);
+  //     ESP_LOGE(TAG, "%s enable controller failed", __func__);
   //     return;
   // }
 
   // ret = esp_bluedroid_init();
   // if (ret)
   // {
-  //     ESP_LOGE(HID_DEMO_TAG, "%s init bluedroid failed", __func__);
+  //     ESP_LOGE(TAG, "%s init bluedroid failed", __func__);
   //     return;
   // }
 
   // ret = esp_bluedroid_enable();
   // if (ret)
   // {
-  //     ESP_LOGE(HID_DEMO_TAG, "%s init bluedroid failed", __func__);
+  //     ESP_LOGE(TAG, "%s init bluedroid failed", __func__);
   //     return;
   // }
 
   // if ((ret = esp_hidd_profile_init()) != ESP_OK)
   // {
-  //     ESP_LOGE(HID_DEMO_TAG, "%s init bluedroid failed", __func__);
+  //     ESP_LOGE(TAG, "%s init bluedroid failed", __func__);
   // }
 
   // /// register the callback function to the gap module
@@ -1072,6 +1048,7 @@ void app_main(void) {
   // &rsp_key, sizeof(uint8_t));
 
   // MAIN LOOP
+
   while (true) {
     if (tud_mounted()) {
       for (int col = 0; col < num_cols; ++col) {

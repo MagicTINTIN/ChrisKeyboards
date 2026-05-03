@@ -1,5 +1,79 @@
-// constants for the keyboard
+#pragma once
+////////////////////////////////
+// CONSTANTS FOR THE KEYBOARD //
+////////////////////////////////
+
+#define HIDD_DEVICE_NAME "ChrisT1 Clavier"
+#define TAG "CT1"
+
+////////////////////////////////
+// INTERFACES
+
 #define HID_ITF_MOUSEKYB    0
 #define HID_ITF_CONSUMER    1
 #define HID_ITF_GAMEPAD1    2
 #define HID_ITF_GAMEPAD2    3
+#define NUMBER_OF_MYKEYS 32
+
+////////////////////////////////
+// NON-VOLATILE MEMORY
+
+#define NVS_NAMESPACE    "ctrl_cfg"
+#define NVS_KEY_GAMEPAD  "gp_en" // gamepads enable
+
+////////////////////////////////
+// KEYS
+
+#define M_HID_UNDEF 0x0
+
+// MY KEYS
+#define M_HIDMKY_FN_LOCK 0x1
+#define M_HIDMK_BACKLIGHT 0x2
+#define M_HIDMK_GAMEPADS 0x3
+
+// LANGUAGES
+#define M_HIDMK_MORSE 0x20
+#define M_HIDMK_HEXA 0x21
+#define M_HIDMK_BIN 0x22
+
+// UC
+#define M_HIDUC_SCAN_PREVIOUS 0x40
+#define M_HIDUC_PLAY_PAUSE 0x41
+#define M_HIDUC_SCAN_NEXT 0x43
+#define M_HIDUC_BRIGHTNESS_DECREMENT 0x44
+#define M_HIDUC_BRIGHTNESS_INCREMENT 0x45
+#define M_HIDUC_AL_CALCULATOR 0x46
+
+// CLASSIC KEYS
+#define M_HIDKEY_MUTE 0x60
+#define M_HIDKEY_VOLUME_DOWN 0x61
+#define M_HIDKEY_VOLUME_UP 0x62
+#define M_HIDKEY_FIND 0x63
+#define M_HIDKEY_APPLICATION 0x64
+#define M_HIDKEY_SCROLLLOCK 0x65
+#define M_HIDKEY_ARROW_PAGE_DOWN 0X66
+#define M_HIDKEY_ARROW_PAGE_UP 0X67
+#define M_HIDKEY_ARROW_BEGIN 0X68
+#define M_HIDKEY_ARROW_END 0X69
+
+////////////////////////////////
+// MATRIX SPECS
+
+#define KB_COLS 8
+#define KB_ROWS 17
+#define MAX_RAW_KEYS (KB_COLS * KB_ROWS)
+
+#define GPIO_CAPS_LED GPIO_NUM_21
+
+////////////////////////////////
+// BUZZER CONFIG
+
+#define BUZZER_GPIO 2
+#define BUZZER_CHANNEL LEDC_CHANNEL_0
+#define BUZZER_TIMER LEDC_TIMER_0
+
+////////////////////////////////
+// KEYBOARD SPECS
+
+#define APP_BUTTON (GPIO_NUM_0) // Use BOOT signal by default
+#define NUMBER_OF_SIMULT_KEYS 6

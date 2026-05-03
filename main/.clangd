@@ -1,3 +1,7 @@
 CompileFlags:
     Remove: ['-fno-shrink-wrap', '-mlongcalls','-fstrict-volatile-bitfields','-fno-tree-switch-conversion','-fzero-init-padding-bits=all','-fno-malloc-dce']
+    CompilationDatabase: ../build
 
+Diagnostics:
+  Suppress:
+    - pp_file_not_found
