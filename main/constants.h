@@ -9,17 +9,39 @@
 ////////////////////////////////
 // INTERFACES
 
-#define HID_ITF_MOUSEKYB    0
-#define HID_ITF_CONSUMER    1
-#define HID_ITF_GAMEPAD1    2
-#define HID_ITF_GAMEPAD2    3
+#define HID_ITF_MOUSEKYB 0
+#define HID_ITF_CONSUMER 1
+#define HID_ITF_GAMEPAD1 2
+#define HID_ITF_GAMEPAD2 3
 #define NUMBER_OF_MYKEYS 32
 
 ////////////////////////////////
 // NON-VOLATILE MEMORY
 
-#define NVS_NAMESPACE    "ctrl_cfg"
-#define NVS_KEY_GAMEPAD  "gp_en" // gamepads enable
+#define NVS_NAMESPACE "ctrl_cfg"
+#define NVS_KEY_GAMEPAD "gp_en" // gamepads enable
+
+////////////////////////////////
+// MATRIX SPECS
+
+#define KB_COLS 8
+#define KB_ROWS 17
+#define MAX_RAW_KEYS (KB_COLS * KB_ROWS)
+
+#define GPIO_CAPS_LED GPIO_NUM_21
+
+////////////////////////////////
+// BUZZER CONFIG
+
+#define BUZZER_GPIO 2
+#define BUZZER_CHANNEL LEDC_CHANNEL_0
+#define BUZZER_TIMER LEDC_TIMER_0
+
+////////////////////////////////
+// KEYBOARD SPECS
+
+#define APP_BUTTON (GPIO_NUM_0) // Use BOOT signal by default
+#define NUMBER_OF_SIMULT_KEYS 6
 
 ////////////////////////////////
 // KEYS
@@ -57,23 +79,41 @@
 #define M_HIDKEY_ARROW_END 0X69
 
 ////////////////////////////////
-// MATRIX SPECS
+// GAMEPADS KEYS
 
-#define KB_COLS 8
-#define KB_ROWS 17
-#define MAX_RAW_KEYS (KB_COLS * KB_ROWS)
+// common controls
+#define KEY_CONTROLLER_LEFT_STICK_RIGHT 0
+#define KEY_CONTROLLER_LEFT_STICK_LEFT 1
+#define KEY_CONTROLLER_LEFT_STICK_DOWN 2
+#define KEY_CONTROLLER_LEFT_STICK_UP 3
 
-#define GPIO_CAPS_LED GPIO_NUM_21
+#define KEY_CONTROLLER_RIGHT_STICK_RIGHT 4
+#define KEY_CONTROLLER_RIGHT_STICK_LEFT 5
+#define KEY_CONTROLLER_RIGHT_STICK_DOWN 6
+#define KEY_CONTROLLER_RIGHT_STICK_UP 7
 
-////////////////////////////////
-// BUZZER CONFIG
+#define KEY_CONTROLLER_DPAD_RIGHT 8
+#define KEY_CONTROLLER_DPAD_LEFT 9
+#define KEY_CONTROLLER_DPAD_DOWN 10
+#define KEY_CONTROLLER_DPAD_UP 11
 
-#define BUZZER_GPIO 2
-#define BUZZER_CHANNEL LEDC_CHANNEL_0
-#define BUZZER_TIMER LEDC_TIMER_0
+#define KEY_CONTROLLER_BUTTON_X 12
+#define KEY_CONTROLLER_BUTTON_Y 13
+#define KEY_CONTROLLER_BUTTON_A 14
+#define KEY_CONTROLLER_BUTTON_B 15
 
-////////////////////////////////
-// KEYBOARD SPECS
+#define KEY_CONTROLLER_BUMPER_LEFT 16
+#define KEY_CONTROLLER_BUMPER_RIGHT 17
 
-#define APP_BUTTON (GPIO_NUM_0) // Use BOOT signal by default
-#define NUMBER_OF_SIMULT_KEYS 6
+#define KEY_CONTROLLER_BUTTON_VIEW 18
+#define KEY_CONTROLLER_BUTTON_HOME 19
+#define KEY_CONTROLLER_BUTTON_MENU 20
+
+#define KEY_CONTROLLER_END 21
+
+// gamepads
+#define CONTROLER1_OFFSET 1
+#define CONTROLER2_OFFSET CONTROLER1_OFFSET + KEY_CONTROLLER_END
+
+#define GC1O(control) ((control) + CONTROLER1_OFFSET)
+#define GC2O(control) ((control) + CONTROLER2_OFFSET)

@@ -60,6 +60,19 @@ static uint8_t const hid_consumer_report_descriptor[] = {
 
 #define CONSUMER_REPORT_ID 2
 
+// gamepad
+
+/*
+ * TUD_HID_REPORT_DESC_GAMEPAD
+ * uint16_t buttons - 16 digital buttons (A/B/X/Y/LB/RB...)
+ * int8_t   x, y    - left  stick  axis (-127 .. 127)
+ * int8_t   z, rz   - right stick  axis (-127 .. 127)
+ * int8_t   rx, ry  - analog triggers   (use  0  .. 127)
+ * uint8_t  hat     - D-pad / hat switch (GAMEPAD_HAT_*)
+ */
+static uint8_t const hid_gamepad_report_descriptor[] = {
+    TUD_HID_REPORT_DESC_GAMEPAD()};
+
 // dummy
 static const uint8_t hid_dummy1_descriptor[] = {
     HID_USAGE_PAGE_N(HID_USAGE_PAGE_VENDOR, 2),
@@ -105,9 +118,9 @@ static const uint8_t hid_configuration_descriptor[] = {
     TUD_HID_DESCRIPTOR(HID_ITF_CONSUMER, 4, false,
                        sizeof(hid_consumer_report_descriptor), 0x82, 16, 10),
     TUD_HID_DESCRIPTOR(HID_ITF_GAMEPAD1, 4, false,
-                       sizeof(hid_dummy1_descriptor), 0x83, 16, 10),
+                       sizeof(hid_gamepad_report_descriptor), 0x83, 16, 10),
     TUD_HID_DESCRIPTOR(HID_ITF_GAMEPAD2, 4, false,
-                       sizeof(hid_dummy1_descriptor), 0x84, 16, 10),
+                       sizeof(hid_gamepad_report_descriptor), 0x84, 16, 10),
 };
 
 static volatile uint8_t g_enabled_gamepads = 0;
@@ -124,12 +137,11 @@ uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance) {
   case HID_ITF_CONSUMER:
     return hid_consumer_report_descriptor;
   case HID_ITF_GAMEPAD1:
-    return hid_dummy1_descriptor;
+    return g_enabled_gamepads > 0 ? hid_gamepad_report_descriptor
+                                  : hid_dummy1_descriptor;
   case HID_ITF_GAMEPAD2:
-    return hid_dummy1_descriptor;
-  // case HID_ITF_GAMEPAD1:  return g_gamepad_enabled > 0
-  //                               ? hid_gamepad_report_descriptor
-  //                               : hid_dummy1_descriptor;
+    return g_enabled_gamepads > 1 ? hid_gamepad_report_descriptor
+                                  : hid_dummy1_descriptor;
   default:
     return hid_mouse_keyboard_report_descriptor;
   }
@@ -280,6 +292,33 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
   gpio_set_level(GPIO_CAPS_LED, caps_on);
 }
 
+static void gp_send(const hid_gamepad_report_t *rpt, uint32_t hold_ms) {
+  /* tud_hid_n_* variants select the interface instance */
+  while (!tud_hid_n_ready(HID_ITF_GAMEPAD1)) {
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+  /*
+   * report_id = 0 : this interface has NO sub-report multiplexing.
+   * If you later add a report ID to the gamepad descriptor, change to 1.
+   */
+  tud_hid_n_report(HID_ITF_GAMEPAD1, 0, rpt, sizeof(*rpt));
+  vTaskDelay(pdMS_TO_TICKS(hold_ms));
+}
+
+static void gp_release(uint32_t gap_ms) {
+  const hid_gamepad_report_t idle = {
+      .x = 0,
+      .y = 0,
+      .z = 0,
+      .rz = 0,
+      .rx = 0,
+      .ry = 0,
+      .hat = GAMEPAD_HAT_CENTERED,
+      .buttons = 0,
+  };
+  gp_send(&idle, gap_ms);
+}
+
 void buzzer_init(void) {
   // NOTE: buzzer_init() is currently unused -> start_buzzer_task() is called
   // instead.
@@ -344,7 +383,7 @@ void buzzer_task(void *param) {
   ledc_channel_config_t ledc_channel = {.gpio_num = BUZZER_GPIO,
                                         .speed_mode = LEDC_LOW_SPEED_MODE,
                                         .channel = LEDC_CHANNEL_0,
-                                        .intr_type = LEDC_INTR_DISABLE,
+                                        // .intr_type = LEDC_INTR_DISABLE,
                                         .timer_sel = LEDC_TIMER_0,
                                         .duty = 0, // 50%
                                         .hpoint = 0};
@@ -424,6 +463,23 @@ const uint8_t fnMatrix[KB_COLS][KB_ROWS] = {
      0, 0, 0, 0, 0, 0, 0, 0, 0},
     {M_HIDMK_BIN, 0, 0, 0, 0, 0, 0, 0, 0, M_HIDKEY_ARROW_BEGIN,
      M_HIDKEY_ARROW_END, M_HIDKEY_ARROW_PAGE_DOWN, 0, 0, 0, 0, 0},
+};
+
+const uint8_t gameMatrix[KB_COLS][KB_ROWS] = {
+    {GC1O(KEY_CONTROLLER_RIGHT_STICK_LEFT), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+     0, 0, 0, GC1O(KEY_CONTROLLER_RIGHT_STICK_DOWN)},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+     GC1O(KEY_CONTROLLER_RIGHT_STICK_UP)},
+    {0, GC1O(KEY_CONTROLLER_LEFT_STICK_UP), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+     0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, GC1O(KEY_CONTROLLER_LEFT_STICK_DOWN),
+     GC1O(KEY_CONTROLLER_LEFT_STICK_RIGHT),
+     GC1O(KEY_CONTROLLER_LEFT_STICK_LEFT), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+     GC1O(KEY_CONTROLLER_RIGHT_STICK_RIGHT)},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 };
 
 const uint8_t matrix[KB_COLS][KB_ROWS] = {
@@ -733,6 +789,22 @@ void fnKeyPressRegistration(uint8_t k) {
     otherHidKeysRegistration(k);
 }
 
+void gamepadPressRegistration(uint8_t pad, uint8_t k) {}
+
+bool gameControllerKeyPressRegistration(uint8_t c, uint8_t r) {
+  const uint8_t controller_gamekey = gameMatrix[c][r];
+  if (g_enabled_gamepads == 0 || controller_gamekey < CONTROLER1_OFFSET ||
+      (controller_gamekey < CONTROLER2_OFFSET && g_enabled_gamepads < 2))
+    return false;
+
+  const uint8_t gamepad = controller_gamekey >= CONTROLER2_OFFSET ? 1 : 0;
+  const uint8_t gamekey = controller_gamekey >= CONTROLER2_OFFSET
+                              ? controller_gamekey - CONTROLER2_OFFSET
+                              : controller_gamekey - CONTROLER1_OFFSET;
+  gamepadPressRegistration(gamepad, gamekey);
+  return true;
+}
+
 void keyPressRegistration(uint8_t c, uint8_t r) {
   // I assigned Fn to Europe 1 as I don't what it is lol
   uint8_t k = matrix[c][r];
@@ -753,6 +825,9 @@ void keyPressRegistration(uint8_t c, uint8_t r) {
     modPressRegistration(k);
     return;
   }
+
+  if (gameControllerKeyPressRegistration(c, r))
+    return;
 
   if (alreadyPressedNewKeysFull)
     return;
