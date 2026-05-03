@@ -110,7 +110,7 @@ static const uint8_t hid_configuration_descriptor[] = {
                        sizeof(hid_dummy1_descriptor), 0x84, 16, 10),
 };
 
-static uint8_t g_enabled_gamepads = 0;
+static volatile uint8_t g_enabled_gamepads = 0;
 
 /********* TinyUSB HID callbacks ***************/
 
@@ -260,6 +260,8 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event,
   }
 }
 
+bool caps_on = false;
+
 void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
                            hid_report_type_t report_type, const uint8_t *buffer,
                            uint16_t bufsize) {
@@ -272,7 +274,7 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
 
   uint8_t leds = buffer[0];
 
-  bool caps_on = leds & KEYBOARD_LED_CAPSLOCK; // from hid.h bitmask
+  caps_on = leds & KEYBOARD_LED_CAPSLOCK; // from hid.h bitmask
   // printf("Caps LED %s\n", caps_on ? "ON" : "OFF");
 
   gpio_set_level(GPIO_CAPS_LED, caps_on);
@@ -305,8 +307,7 @@ void buzzer_init(void) {
 }
 
 void buzzer_quack(void) {
-  // Frequency and duty can be tuned to your speaker
-  int freq = 880; // A5 note, sounds kind of like a short “quack”
+  int freq = 880; // A5 note
   int duty = 512; // 50% of 10-bit resolution (0–1023)
 
   ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, freq);
@@ -372,12 +373,46 @@ void start_buzzer_task(void) {
 void buzzer_on(void) { buzzer_running = true; }
 void buzzer_off(void) { buzzer_running = false; }
 
+// Static memory for the startup task
+StaticTask_t startupTaskTCB;
+StackType_t startupTaskStack[STACK_SIZE];
+static TaskHandle_t startup_task_handle = NULL;
+
+void startup_info_task(void *param) {
+  gpio_set_level(GPIO_CAPS_LED, false);
+
+  for (int i = 0; i < g_enabled_gamepads; i++) {
+    vTaskDelay(pdMS_TO_TICKS(250));
+    gpio_set_level(GPIO_CAPS_LED, true);
+    vTaskDelay(pdMS_TO_TICKS(250));
+    gpio_set_level(GPIO_CAPS_LED, false);
+  }
+
+  vTaskDelay(pdMS_TO_TICKS(100));
+  gpio_set_level(GPIO_CAPS_LED, caps_on);
+
+  // IMPORTANT: terminate task properly
+  vTaskDelete(NULL);
+}
+
+void start_startup_info_task(void) {
+  startup_task_handle =
+      xTaskCreateStatic(startup_info_task, // Task function
+                        "StartupTask",     // Name
+                        STACK_SIZE,        // Stack size in words, not bytes
+                        NULL,              // Parameter
+                        5,                 // Priority
+                        startupTaskStack,  // Stack array
+                        &startupTaskTCB    // Task control block
+      );
+}
+
 /********* Application ***************/
 
 const uint8_t fnMatrix[KB_COLS][KB_ROWS] = {
-    {M_HIDMK_GAMEPADS, 0, M_HIDUC_SCAN_PREVIOUS, M_HIDMKY_FN_LOCK, 0, 0, 0, 0, 0,
-     M_HIDKEY_ARROW_PAGE_UP, 0, 0, M_HIDUC_PLAY_PAUSE, 0, 0, M_HIDUC_SCAN_NEXT,
-     0},
+    {M_HIDMK_GAMEPADS, 0, M_HIDUC_SCAN_PREVIOUS, M_HIDMKY_FN_LOCK, 0, 0, 0, 0,
+     0, M_HIDKEY_ARROW_PAGE_UP, 0, 0, M_HIDUC_PLAY_PAUSE, 0, 0,
+     M_HIDUC_SCAN_NEXT, 0},
     {0, 0, M_HIDKEY_VOLUME_UP, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
     {0, M_HIDKEY_MUTE, M_HIDKEY_VOLUME_DOWN, 0, 0, 0, 0, 0, 0, 0,
@@ -875,8 +910,7 @@ void app_main(void) {
    *      tud_hid_descriptor_report_cb fires during enumeration,
    *      which starts inside that call. */
   g_enabled_gamepads = cfg_read_enabled_gamepads();
-  ESP_LOGI(TAG, "Config: enabled_gamepads=%d",
-           g_enabled_gamepads);
+  ESP_LOGI(TAG, "Config: enabled_gamepads=%d", g_enabled_gamepads);
 
   // GPIOs for columns (KSIs, ESP outputs)
   const gpio_num_t cols[] = {
@@ -945,6 +979,7 @@ void app_main(void) {
   gpio_config(&caps_led_conf);
 
   start_buzzer_task();
+  start_startup_info_task();
 
   const tinyusb_config_t tusb_cfg = {
       .device_descriptor = NULL,

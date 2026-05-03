@@ -15,7 +15,7 @@ void cfg_toggle_gamepad_interfaces(uint8_t current_state) {
   nvs_close(h);
 
   ESP_LOGI(TAG, "Enabled gamepads: %d, rebooting", next);
-  vTaskDelay(pdMS_TO_TICKS(100)); // let the log message flush over UART
+  vTaskDelay(pdMS_TO_TICKS(50)); // let the log message flush over UART
   esp_restart();
 }
 
