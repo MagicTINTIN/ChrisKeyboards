@@ -467,18 +467,21 @@ const uint8_t fnMatrix[KB_COLS][KB_ROWS] = {
 
 const uint8_t gameMatrix[KB_COLS][KB_ROWS] = {
     {GC1O(KEY_CONTROLLER_RIGHT_STICK_LEFT), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-     0, 0, 0, GC1O(KEY_CONTROLLER_RIGHT_STICK_DOWN)},
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-     GC1O(KEY_CONTROLLER_RIGHT_STICK_UP)},
+     GC2O(KEY_CONTROLLER_LEFT_STICK_DOWN), 0, 0,
+     GC1O(KEY_CONTROLLER_RIGHT_STICK_DOWN)},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, GC2O(KEY_CONTROLLER_LEFT_STICK_UP),
+     0, 0, GC1O(KEY_CONTROLLER_RIGHT_STICK_UP)},
     {0, GC1O(KEY_CONTROLLER_LEFT_STICK_UP), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
      0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
     {0, GC1O(KEY_CONTROLLER_LEFT_STICK_DOWN),
      GC1O(KEY_CONTROLLER_LEFT_STICK_RIGHT),
-     GC1O(KEY_CONTROLLER_LEFT_STICK_LEFT), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+     GC1O(KEY_CONTROLLER_LEFT_STICK_LEFT), 0, 0, 0, 0, 0, 0, 0, 0, 0,
+     GC2O(KEY_CONTROLLER_LEFT_STICK_LEFT), 0, 0,
      GC1O(KEY_CONTROLLER_RIGHT_STICK_RIGHT)},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+     GC2O(KEY_CONTROLLER_LEFT_STICK_RIGHT), 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 };
 
@@ -793,20 +796,48 @@ void fnKeyPressRegistration(uint8_t k) {
 }
 
 void gamepadPressRegistration(uint8_t pad, uint8_t k) {
-  hid_gamepad_report_t* current_gamepad = pad == 1 ? &current_gamepad2 : &current_gamepad1;
+  hid_gamepad_report_t *current_gamepad =
+      pad == 1 ? &current_gamepad2 : &current_gamepad1;
 
+  if (k <= KEY_CONTROLLER_RIGHT_STICK_UP) {
+    // it is a joystick
+    uint8_t joystick_side =
+        k >= KEY_CONTROLLER_RIGHT_STICK_RIGHT; // 0=left, 1=right
+    if (joystick_side)
+      k -= 4;
+    uint8_t direction = k > 1; // 0=horizontal, 1=vertical
+    if (direction)
+      k -= 2;
+    int8_t value = k ? -127 : 127;
+    printf("Gamepad %d: %s joystick %s:%d\n", pad,
+           joystick_side ? "right" : "left", direction ? "y" : "x", value);
+
+    if (joystick_side) {
+      if (direction)
+        current_gamepad->ry += value;
+      else
+        current_gamepad->rx += value;
+    } else {
+      if (direction)
+        current_gamepad->y += value;
+      else
+        current_gamepad->x += value;
+    }
+    return;
+  }
 }
 
 bool gameControllerKeyPressRegistration(uint8_t c, uint8_t r) {
   const uint8_t controller_gamekey = gameMatrix[c][r];
   if (g_enabled_gamepads == 0 || controller_gamekey < CONTROLER1_OFFSET ||
-      (controller_gamekey < CONTROLER2_OFFSET && g_enabled_gamepads < 2))
+      (controller_gamekey >= CONTROLER2_OFFSET && g_enabled_gamepads < 2))
     return false;
 
   const uint8_t gamepad = controller_gamekey >= CONTROLER2_OFFSET ? 1 : 0;
-  const uint8_t gamekey = controller_gamekey >= CONTROLER2_OFFSET
-                              ? controller_gamekey - CONTROLER2_OFFSET
-                              : controller_gamekey - CONTROLER1_OFFSET;
+  const uint8_t gamekey = gamepad ? controller_gamekey - CONTROLER2_OFFSET
+                                  : controller_gamekey - CONTROLER1_OFFSET;
+  printf("Command: (%d,%d) -> raw_key=%d -> gamepad=%d, key=%d\n", c, r,
+         controller_gamekey, gamepad, gamekey);
   gamepadPressRegistration(gamepad, gamekey);
   return true;
 }
@@ -864,6 +895,24 @@ void mykeyUpdateRegistration(void) {
   // printf("-> 0\n");
 }
 
+void gamepadUpdateRegistration(void) {
+  printf("registration: %d gamepads, %d(x=%d,y=%d) & %d(x=%d,y=%d)\n",
+         g_enabled_gamepads, tud_hid_n_ready(HID_ITF_GAMEPAD1),
+         current_gamepad1.x, current_gamepad1.y,
+         tud_hid_n_ready(HID_ITF_GAMEPAD2), current_gamepad2.x,
+         current_gamepad2.y);
+  if (g_enabled_gamepads > 0 && tud_hid_n_ready(HID_ITF_GAMEPAD1)) {
+    tud_hid_n_report(HID_ITF_GAMEPAD1, 0, &current_gamepad1,
+                     sizeof(current_gamepad1));
+    memset(&current_gamepad1, 0, sizeof(current_gamepad1));
+  }
+  if (g_enabled_gamepads > 1 && tud_hid_n_ready(HID_ITF_GAMEPAD2)) {
+    tud_hid_n_report(HID_ITF_GAMEPAD2, 0, &current_gamepad2,
+                     sizeof(current_gamepad2));
+    memset(&current_gamepad2, 0, sizeof(current_gamepad2));
+  }
+}
+
 void keyUpdateRegistration(void) {
   // esp_hidd_send_consumer_value(hid_conn_id, HID_CONSUMER_VOLUME_UP, true); //
   // it does work lol printf("up?");
@@ -885,6 +934,8 @@ void keyUpdateRegistration(void) {
   memset(newKeys, 0, NUMBER_OF_SIMULT_KEYS);
 
   mykeyUpdateRegistration();
+
+  gamepadUpdateRegistration();
 
   sendKeysReport();
 
