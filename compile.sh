@@ -136,6 +136,13 @@ stepi() {
         stepInstall
         ;;
 
+    confd)
+        step1
+        step2
+        step3
+        stepDebug
+        ;;
+
     confandcompile)
         step1
         step2

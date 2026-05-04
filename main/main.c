@@ -517,6 +517,9 @@ const uint8_t matrix[KB_COLS][KB_ROWS] = {
      HID_KEY_SLASH, HID_KEY_NONE, HID_KEY_NONE, HID_KEY_N},
 };
 
+hid_gamepad_report_t current_gamepad1 = {0};
+hid_gamepad_report_t current_gamepad2 = {0};
+
 // modifiers
 bool fnPressed = false;
 bool fnNewPressed = false;
@@ -789,7 +792,10 @@ void fnKeyPressRegistration(uint8_t k) {
     otherHidKeysRegistration(k);
 }
 
-void gamepadPressRegistration(uint8_t pad, uint8_t k) {}
+void gamepadPressRegistration(uint8_t pad, uint8_t k) {
+  hid_gamepad_report_t* current_gamepad = pad == 1 ? &current_gamepad2 : &current_gamepad1;
+
+}
 
 bool gameControllerKeyPressRegistration(uint8_t c, uint8_t r) {
   const uint8_t controller_gamekey = gameMatrix[c][r];

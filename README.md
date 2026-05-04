@@ -19,6 +19,7 @@ We can recover keyboard from an old laptop or buy a spare one (the one I chose i
 - [x] assemble everything on a breadboard
 - [x] program the esp32
 - [x] testing the prototype in real conditions
+- [x] implement missing features
 - [ ] design PCB
 - [ ] 3D model the case
 - [ ] get last components
