@@ -1,4 +1,10 @@
 #pragma once
+
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
+#include "class/hid/hid.h"
+#include <stdint.h>
+
 ////////////////////////////////
 // CONSTANTS FOR THE KEYBOARD //
 ////////////////////////////////
@@ -20,7 +26,7 @@
 
 #define NVS_NAMESPACE "ctrl_cfg"
 #define NVS_KEY_GAMEPAD_ITFS "gp_itfs" // gamepads interfaces enable
-#define NVS_KEY_GAMEPAD "gp_en" // gamepads enable
+#define NVS_KEY_GAMEPAD "gp_en"        // gamepads enable
 
 ////////////////////////////////
 // MATRIX SPECS
@@ -112,9 +118,17 @@
 
 #define KEY_CONTROLLER_END 21
 
+const static uint8_t DPADS_DIRECTIONS[3][3] = {
+    {GAMEPAD_HAT_UP_LEFT, GAMEPAD_HAT_UP, GAMEPAD_HAT_UP_RIGHT},
+    {GAMEPAD_HAT_LEFT, GAMEPAD_HAT_CENTERED, GAMEPAD_HAT_RIGHT},
+    {GAMEPAD_HAT_DOWN_LEFT, GAMEPAD_HAT_DOWN, GAMEPAD_HAT_DOWN_RIGHT},
+};
+
 // gamepads
 #define CONTROLER1_OFFSET 1
 #define CONTROLER2_OFFSET (CONTROLER1_OFFSET + KEY_CONTROLLER_END)
 
 #define GC1O(control) ((control) + CONTROLER1_OFFSET)
 #define GC2O(control) ((control) + CONTROLER2_OFFSET)
+
+#endif // CONSTANTS_H

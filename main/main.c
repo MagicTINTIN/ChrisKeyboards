@@ -293,33 +293,6 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
   gpio_set_level(GPIO_CAPS_LED, caps_on);
 }
 
-static void gp_send(const hid_gamepad_report_t *rpt, uint32_t hold_ms) {
-  /* tud_hid_n_* variants select the interface instance */
-  while (!tud_hid_n_ready(HID_ITF_GAMEPAD1)) {
-    vTaskDelay(pdMS_TO_TICKS(1));
-  }
-  /*
-   * report_id = 0 : this interface has NO sub-report multiplexing.
-   * If you later add a report ID to the gamepad descriptor, change to 1.
-   */
-  tud_hid_n_report(HID_ITF_GAMEPAD1, 0, rpt, sizeof(*rpt));
-  vTaskDelay(pdMS_TO_TICKS(hold_ms));
-}
-
-static void gp_release(uint32_t gap_ms) {
-  const hid_gamepad_report_t idle = {
-      .x = 0,
-      .y = 0,
-      .z = 0,
-      .rz = 0,
-      .rx = 0,
-      .ry = 0,
-      .hat = GAMEPAD_HAT_CENTERED,
-      .buttons = 0,
-  };
-  gp_send(&idle, gap_ms);
-}
-
 void buzzer_init(void) {
   // NOTE: buzzer_init() is currently unused -> start_buzzer_task() is called
   // instead.
@@ -467,23 +440,37 @@ const uint8_t fnMatrix[KB_COLS][KB_ROWS] = {
 };
 
 const uint8_t gameMatrix[KB_COLS][KB_ROWS] = {
-    {GC1O(KEY_CONTROLLER_RIGHT_STICK_LEFT), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    {GC1O(KEY_CONTROLLER_RIGHT_STICK_LEFT), 0, 0, 0, 0, 0, 0, 0, 0,
+     GC2O(KEY_CONTROLLER_DPAD_UP), 0, 0, 0,
      GC2O(KEY_CONTROLLER_LEFT_STICK_DOWN), 0, 0,
      GC1O(KEY_CONTROLLER_RIGHT_STICK_DOWN)},
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, GC2O(KEY_CONTROLLER_LEFT_STICK_UP),
-     0, 0, GC1O(KEY_CONTROLLER_RIGHT_STICK_UP)},
-    {0, GC1O(KEY_CONTROLLER_LEFT_STICK_UP), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-     0, 0, 0},
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    {0, GC1O(KEY_CONTROLLER_LEFT_STICK_DOWN),
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, GC2O(KEY_CONTROLLER_BUTTON_X), 0, 0,
+     GC2O(KEY_CONTROLLER_LEFT_STICK_UP), GC1O(KEY_CONTROLLER_BUTTON_Y),
+     GC2O(KEY_CONTROLLER_BUMPER_RIGHT), GC1O(KEY_CONTROLLER_RIGHT_STICK_UP)},
+    {0, GC1O(KEY_CONTROLLER_LEFT_STICK_UP), GC1O(KEY_CONTROLLER_BUMPER_RIGHT),
+     GC1O(KEY_CONTROLLER_BUMPER_LEFT), 0, 0, 0, 0, 0, 0,
+     GC2O(KEY_CONTROLLER_RIGHT_STICK_LEFT), 0, 0,
+     GC2O(KEY_CONTROLLER_BUMPER_LEFT), 0, 0, 0},
+    {GC1O(KEY_CONTROLLER_BUTTON_X), 0, 0, 0,
+     GC2O(KEY_CONTROLLER_RIGHT_STICK_UP), 0, 0, 0, 0,
+     GC2O(KEY_CONTROLLER_BUTTON_Y), 0, 0, 0, GC2O(KEY_CONTROLLER_BUTTON_HOME),
+     0, GC2O(KEY_CONTROLLER_BUTTON_MENU), GC1O(KEY_CONTROLLER_BUTTON_A)},
+    {GC1O(KEY_CONTROLLER_DPAD_UP), GC1O(KEY_CONTROLLER_LEFT_STICK_DOWN),
      GC1O(KEY_CONTROLLER_LEFT_STICK_RIGHT),
      GC1O(KEY_CONTROLLER_LEFT_STICK_LEFT), 0, 0, 0, 0, 0, 0, 0, 0, 0,
      GC2O(KEY_CONTROLLER_LEFT_STICK_LEFT), 0, 0,
      GC1O(KEY_CONTROLLER_RIGHT_STICK_RIGHT)},
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    {0, GC1O(KEY_CONTROLLER_BUTTON_HOME), GC1O(KEY_CONTROLLER_BUTTON_MENU),
+     GC1O(KEY_CONTROLLER_BUTTON_VIEW), 0, 0, 0, 0, 0, 0, 0, 0, 0,
+     GC2O(KEY_CONTROLLER_BUTTON_VIEW), 0, 0, GC1O(KEY_CONTROLLER_BUTTON_B)},
+    {GC1O(KEY_CONTROLLER_DPAD_DOWN), 0, GC1O(KEY_CONTROLLER_DPAD_LEFT), 0,
+     GC2O(KEY_CONTROLLER_BUTTON_A), 0, 0, 0, 0, GC2O(KEY_CONTROLLER_BUTTON_B),
+     GC2O(KEY_CONTROLLER_RIGHT_STICK_DOWN),
+     GC2O(KEY_CONTROLLER_RIGHT_STICK_RIGHT), 0,
      GC2O(KEY_CONTROLLER_LEFT_STICK_RIGHT), 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {GC1O(KEY_CONTROLLER_DPAD_RIGHT), 0, 0, 0, 0, 0, 0, 0, 0,
+     GC2O(KEY_CONTROLLER_DPAD_LEFT), GC2O(KEY_CONTROLLER_DPAD_RIGHT),
+     GC2O(KEY_CONTROLLER_DPAD_DOWN), 0, 0, 0, 0, 0},
 };
 
 const uint8_t matrix[KB_COLS][KB_ROWS] = {
