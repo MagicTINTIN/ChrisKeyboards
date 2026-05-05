@@ -19,6 +19,7 @@
 // NON-VOLATILE MEMORY
 
 #define NVS_NAMESPACE "ctrl_cfg"
+#define NVS_KEY_GAMEPAD_ITFS "gp_itfs" // gamepads interfaces enable
 #define NVS_KEY_GAMEPAD "gp_en" // gamepads enable
 
 ////////////////////////////////

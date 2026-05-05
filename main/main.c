@@ -123,7 +123,8 @@ static const uint8_t hid_configuration_descriptor[] = {
                        sizeof(hid_gamepad_report_descriptor), 0x84, 16, 10),
 };
 
-static volatile uint8_t g_enabled_gamepads = 0;
+static volatile uint8_t g_enabled_gamepads_itfs = 0;
+static volatile uint8_t g_enabled_gamepads_keys = 0;
 
 /********* TinyUSB HID callbacks ***************/
 
@@ -137,11 +138,11 @@ uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance) {
   case HID_ITF_CONSUMER:
     return hid_consumer_report_descriptor;
   case HID_ITF_GAMEPAD1:
-    return g_enabled_gamepads > 0 ? hid_gamepad_report_descriptor
-                                  : hid_dummy1_descriptor;
+    return g_enabled_gamepads_itfs > 0 ? hid_gamepad_report_descriptor
+                                       : hid_dummy1_descriptor;
   case HID_ITF_GAMEPAD2:
-    return g_enabled_gamepads > 1 ? hid_gamepad_report_descriptor
-                                  : hid_dummy1_descriptor;
+    return g_enabled_gamepads_itfs > 1 ? hid_gamepad_report_descriptor
+                                       : hid_dummy1_descriptor;
   default:
     return hid_mouse_keyboard_report_descriptor;
   }
@@ -420,7 +421,7 @@ static TaskHandle_t startup_task_handle = NULL;
 void startup_info_task(void *param) {
   gpio_set_level(GPIO_CAPS_LED, false);
 
-  for (int i = 0; i < g_enabled_gamepads; i++) {
+  for (int i = 0; i < g_enabled_gamepads_itfs; i++) {
     vTaskDelay(pdMS_TO_TICKS(250));
     gpio_set_level(GPIO_CAPS_LED, true);
     vTaskDelay(pdMS_TO_TICKS(250));
@@ -678,18 +679,6 @@ void normalKeyPressRegistration(uint8_t k) {
 
 void myKeysRegistration(uint8_t k) {
   bool alreadyPressed = alreadyPressedMyKeys[k];
-  if (!alreadyPressed)
-    switch (k) {
-    case M_HIDMKY_FN_LOCK:
-      fnLocked = !fnLocked;
-      printf("Toggle FnLock\n");
-      break;
-    case M_HIDMK_GAMEPADS:
-      cfg_toggle_gamepad_interfaces(g_enabled_gamepads);
-      break;
-    default:
-      return;
-    }
 
   if (newMyKeysIndex < NUMBER_OF_SIMULT_KEYS) {
     newMyKeys[newMyKeysIndex++] = k;
@@ -809,8 +798,6 @@ void gamepadPressRegistration(uint8_t pad, uint8_t k) {
     if (direction)
       k -= 2;
     int8_t value = k ? -127 : 127;
-    printf("Gamepad %d: %s joystick %s:%d\n", pad,
-           joystick_side ? "right" : "left", direction ? "y" : "x", value);
 
     if (joystick_side) {
       if (direction)
@@ -829,15 +816,14 @@ void gamepadPressRegistration(uint8_t pad, uint8_t k) {
 
 bool gameControllerKeyPressRegistration(uint8_t c, uint8_t r) {
   const uint8_t controller_gamekey = gameMatrix[c][r];
-  if (g_enabled_gamepads == 0 || controller_gamekey < CONTROLER1_OFFSET ||
-      (controller_gamekey >= CONTROLER2_OFFSET && g_enabled_gamepads < 2))
+  if (g_enabled_gamepads_keys == 0 || g_enabled_gamepads_itfs == 0 ||
+      controller_gamekey < CONTROLER1_OFFSET ||
+      (controller_gamekey >= CONTROLER2_OFFSET && g_enabled_gamepads_itfs < 2))
     return false;
 
   const uint8_t gamepad = controller_gamekey >= CONTROLER2_OFFSET ? 1 : 0;
   const uint8_t gamekey = gamepad ? controller_gamekey - CONTROLER2_OFFSET
                                   : controller_gamekey - CONTROLER1_OFFSET;
-  printf("Command: (%d,%d) -> raw_key=%d -> gamepad=%d, key=%d\n", c, r,
-         controller_gamekey, gamepad, gamekey);
   gamepadPressRegistration(gamepad, gamekey);
   return true;
 }
@@ -851,15 +837,15 @@ void keyPressRegistration(uint8_t c, uint8_t r) {
     return;
   }
 
-  if ((fnPressed && (k < HID_KEY_F1 || k > HID_KEY_F12)) ||
-      ((fnLocked ^ fnPressed) && k >= HID_KEY_F1 && k <= HID_KEY_F12)) {
-    fnKeyPressRegistration(fnMatrix[c][r]);
+  // modifiers
+  if (k >= HID_KEY_CONTROL_LEFT) {
+    modPressRegistration(k);
     return;
   }
 
-  // normal keys
-  if (k >= HID_KEY_CONTROL_LEFT) {
-    modPressRegistration(k);
+  if ((fnPressed && (k < HID_KEY_F1 || k > HID_KEY_F12)) ||
+      ((fnLocked ^ fnPressed) && k >= HID_KEY_F1 && k <= HID_KEY_F12)) {
+    fnKeyPressRegistration(fnMatrix[c][r]);
     return;
   }
 
@@ -874,6 +860,25 @@ void keyPressRegistration(uint8_t c, uint8_t r) {
 }
 
 void mykeyUpdateRegistration(void) {
+  for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++) {
+    uint8_t k = newMyKeys[i];
+    bool alreadyPressed = alreadyPressedMyKeys[k];
+    if (!alreadyPressed)
+      switch (k) {
+      case M_HIDMKY_FN_LOCK:
+        fnLocked = !fnLocked;
+        printf("Toggle FnLock\n");
+        break;
+      case M_HIDMK_GAMEPADS:
+        if (currentMod & KEYBOARD_MODIFIER_LEFTSHIFT)
+          cfg_toggle_gamepad_interfaces(g_enabled_gamepads_itfs);
+        else
+          g_enabled_gamepads_keys = cfg_toggle_gamepad_keys(g_enabled_gamepads_keys);
+        break;
+      default:
+        break;
+      }
+  }
   for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++) {
     // printf("- a[%d=c[%d]]=%d ", currentMyKeys[i], i,
     // alreadyPressedMyKeys[currentMyKeys[i]]);
@@ -896,17 +901,14 @@ void mykeyUpdateRegistration(void) {
 }
 
 void gamepadUpdateRegistration(void) {
-  printf("registration: %d gamepads, %d(x=%d,y=%d) & %d(x=%d,y=%d)\n",
-         g_enabled_gamepads, tud_hid_n_ready(HID_ITF_GAMEPAD1),
-         current_gamepad1.x, current_gamepad1.y,
-         tud_hid_n_ready(HID_ITF_GAMEPAD2), current_gamepad2.x,
-         current_gamepad2.y);
-  if (g_enabled_gamepads > 0 && tud_hid_n_ready(HID_ITF_GAMEPAD1)) {
+  if (g_enabled_gamepads_keys == 0)
+    return;
+  if (g_enabled_gamepads_itfs > 0 && tud_hid_n_ready(HID_ITF_GAMEPAD1)) {
     tud_hid_n_report(HID_ITF_GAMEPAD1, 0, &current_gamepad1,
                      sizeof(current_gamepad1));
     memset(&current_gamepad1, 0, sizeof(current_gamepad1));
   }
-  if (g_enabled_gamepads > 1 && tud_hid_n_ready(HID_ITF_GAMEPAD2)) {
+  if (g_enabled_gamepads_itfs > 1 && tud_hid_n_ready(HID_ITF_GAMEPAD2)) {
     tud_hid_n_report(HID_ITF_GAMEPAD2, 0, &current_gamepad2,
                      sizeof(current_gamepad2));
     memset(&current_gamepad2, 0, sizeof(current_gamepad2));
@@ -1041,8 +1043,10 @@ void app_main(void) {
   /* 2 ── Read config BEFORE tinyusb_driver_install() because
    *      tud_hid_descriptor_report_cb fires during enumeration,
    *      which starts inside that call. */
-  g_enabled_gamepads = cfg_read_enabled_gamepads();
-  ESP_LOGI(TAG, "Config: enabled_gamepads=%d", g_enabled_gamepads);
+  g_enabled_gamepads_itfs = cfg_read_enabled_gamepads();
+  g_enabled_gamepads_keys = cfg_read_enabled_gamepads_keys();
+  ESP_LOGI(TAG, "Config: enabled_gamepads_interfaces=%d (active: %d)",
+           g_enabled_gamepads_itfs, g_enabled_gamepads_keys);
 
   // GPIOs for columns (KSIs, ESP outputs)
   const gpio_num_t cols[] = {
