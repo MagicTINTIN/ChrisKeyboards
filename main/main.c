@@ -510,6 +510,7 @@ const uint8_t matrix[KB_COLS][KB_ROWS] = {
 
 hid_gamepad_report_t current_gamepad1 = {0};
 hid_gamepad_report_t current_gamepad2 = {0};
+int8_t current_dpads_x1y1x2y2[4] = {0};
 
 // modifiers
 bool fnPressed = false;
@@ -775,27 +776,28 @@ void gamepadPressRegistration(uint8_t pad, uint8_t k) {
   hid_gamepad_report_t *current_gamepad =
       pad == 1 ? &current_gamepad2 : &current_gamepad1;
 
-  if (k <= KEY_CONTROLLER_RIGHT_STICK_UP) {
-    // it is a joystick
-    uint8_t joystick_side =
-        k >= KEY_CONTROLLER_RIGHT_STICK_RIGHT; // 0=left, 1=right
-    if (joystick_side)
-      k -= 4;
+  if (k <= KEY_CONTROLLER_DPAD_UP) {
+    // it is a joystick (or dpad)
+    uint8_t joystick_side = k / 4; // 0=left, 1=right, 2=dpad
+    k -= 4 * joystick_side;
     uint8_t direction = k > 1; // 0=horizontal, 1=vertical
     if (direction)
       k -= 2;
     int8_t value = k ? -127 : 127;
 
-    if (joystick_side) {
+    if (joystick_side == 0) {
+      if (direction)
+        current_gamepad->y += value;
+      else
+        current_gamepad->x += value;
+    } else if (joystick_side == 1) {
       if (direction)
         current_gamepad->ry += value;
       else
         current_gamepad->rx += value;
     } else {
-      if (direction)
-        current_gamepad->y += value;
-      else
-        current_gamepad->x += value;
+      // dpad
+      current_dpads_x1y1x2y2[2 * pad + direction] += k ? -1 : 1;
     }
     return;
   }
@@ -860,7 +862,8 @@ void mykeyUpdateRegistration(void) {
         if (currentMod & KEYBOARD_MODIFIER_LEFTSHIFT)
           cfg_toggle_gamepad_interfaces(g_enabled_gamepads_itfs);
         else
-          g_enabled_gamepads_keys = cfg_toggle_gamepad_keys(g_enabled_gamepads_keys);
+          g_enabled_gamepads_keys =
+              cfg_toggle_gamepad_keys(g_enabled_gamepads_keys);
         break;
       default:
         break;
@@ -891,11 +894,16 @@ void gamepadUpdateRegistration(void) {
   if (g_enabled_gamepads_keys == 0)
     return;
   if (g_enabled_gamepads_itfs > 0 && tud_hid_n_ready(HID_ITF_GAMEPAD1)) {
+    current_gamepad1.hat = DPADS_DIRECTIONS[current_dpads_x1y1x2y2[1] + 1]
+                                           [current_dpads_x1y1x2y2[0] + 1];
     tud_hid_n_report(HID_ITF_GAMEPAD1, 0, &current_gamepad1,
                      sizeof(current_gamepad1));
     memset(&current_gamepad1, 0, sizeof(current_gamepad1));
+    memset(&current_dpads_x1y1x2y2, 0, sizeof(current_dpads_x1y1x2y2));
   }
   if (g_enabled_gamepads_itfs > 1 && tud_hid_n_ready(HID_ITF_GAMEPAD2)) {
+    current_gamepad2.hat = DPADS_DIRECTIONS[current_dpads_x1y1x2y2[3] + 1]
+                                           [current_dpads_x1y1x2y2[2] + 1];
     tud_hid_n_report(HID_ITF_GAMEPAD2, 0, &current_gamepad2,
                      sizeof(current_gamepad2));
     memset(&current_gamepad2, 0, sizeof(current_gamepad2));
