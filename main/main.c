@@ -893,6 +893,16 @@ void mykeyUpdateRegistration(void) {
 void gamepadUpdateRegistration(void) {
   if (g_enabled_gamepads_keys == 0)
     return;
+  if (g_enabled_gamepads_itfs > 1 && tud_hid_n_ready(HID_ITF_GAMEPAD2)) {
+    current_gamepad2.hat = DPADS_DIRECTIONS[current_dpads_x1y1x2y2[3] + 1]
+                                           [current_dpads_x1y1x2y2[2] + 1];
+    // printf("(%d,%d,%d,%d) -> %d\n", current_dpads_x1y1x2y2[0],
+    // current_dpads_x1y1x2y2[1], current_dpads_x1y1x2y2[2],
+    // current_dpads_x1y1x2y2[3], current_gamepad2.hat);
+    tud_hid_n_report(HID_ITF_GAMEPAD2, 0, &current_gamepad2,
+                     sizeof(current_gamepad2));
+    memset(&current_gamepad2, 0, sizeof(current_gamepad2));
+  }
   if (g_enabled_gamepads_itfs > 0 && tud_hid_n_ready(HID_ITF_GAMEPAD1)) {
     current_gamepad1.hat = DPADS_DIRECTIONS[current_dpads_x1y1x2y2[1] + 1]
                                            [current_dpads_x1y1x2y2[0] + 1];
