@@ -801,6 +801,35 @@ void gamepadPressRegistration(uint8_t pad, uint8_t k) {
     }
     return;
   }
+  switch (k) {
+  case KEY_CONTROLLER_BUTTON_X:
+    current_gamepad->buttons |= GC_BTN_X;
+    return;
+  case KEY_CONTROLLER_BUTTON_Y:
+    current_gamepad->buttons |= GC_BTN_Y;
+    return;
+  case KEY_CONTROLLER_BUTTON_A:
+    current_gamepad->buttons |= GC_BTN_A;
+    return;
+  case KEY_CONTROLLER_BUTTON_B:
+    current_gamepad->buttons |= GC_BTN_B;
+    return;
+  case KEY_CONTROLLER_BUMPER_LEFT:
+    current_gamepad->buttons |= GC_BTN_LB;
+    return;
+  case KEY_CONTROLLER_BUMPER_RIGHT:
+    current_gamepad->buttons |= GC_BTN_RB;
+    return;
+  case KEY_CONTROLLER_BUTTON_VIEW:
+    current_gamepad->buttons |= GC_BTN_SELECT;
+    return;
+  case KEY_CONTROLLER_BUTTON_HOME:
+    current_gamepad->buttons |= GC_BTN_HOME;
+    return;
+  case KEY_CONTROLLER_BUTTON_MENU:
+    current_gamepad->buttons |= GC_BTN_START;
+    return;
+  }
 }
 
 bool gameControllerKeyPressRegistration(uint8_t c, uint8_t r) {
@@ -896,9 +925,6 @@ void gamepadUpdateRegistration(void) {
   if (g_enabled_gamepads_itfs > 1 && tud_hid_n_ready(HID_ITF_GAMEPAD2)) {
     current_gamepad2.hat = DPADS_DIRECTIONS[current_dpads_x1y1x2y2[3] + 1]
                                            [current_dpads_x1y1x2y2[2] + 1];
-    // printf("(%d,%d,%d,%d) -> %d\n", current_dpads_x1y1x2y2[0],
-    // current_dpads_x1y1x2y2[1], current_dpads_x1y1x2y2[2],
-    // current_dpads_x1y1x2y2[3], current_gamepad2.hat);
     tud_hid_n_report(HID_ITF_GAMEPAD2, 0, &current_gamepad2,
                      sizeof(current_gamepad2));
     memset(&current_gamepad2, 0, sizeof(current_gamepad2));
@@ -910,13 +936,6 @@ void gamepadUpdateRegistration(void) {
                      sizeof(current_gamepad1));
     memset(&current_gamepad1, 0, sizeof(current_gamepad1));
     memset(&current_dpads_x1y1x2y2, 0, sizeof(current_dpads_x1y1x2y2));
-  }
-  if (g_enabled_gamepads_itfs > 1 && tud_hid_n_ready(HID_ITF_GAMEPAD2)) {
-    current_gamepad2.hat = DPADS_DIRECTIONS[current_dpads_x1y1x2y2[3] + 1]
-                                           [current_dpads_x1y1x2y2[2] + 1];
-    tud_hid_n_report(HID_ITF_GAMEPAD2, 0, &current_gamepad2,
-                     sizeof(current_gamepad2));
-    memset(&current_gamepad2, 0, sizeof(current_gamepad2));
   }
 }
 

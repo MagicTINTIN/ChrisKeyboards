@@ -118,6 +118,21 @@
 
 #define KEY_CONTROLLER_END 21
 
+#define GC_BTN_A (1u << 0)
+#define GC_BTN_B (1u << 1)
+#define GC_BTN_X (1u << 2)
+#define GC_BTN_Y (1u << 3)
+#define GC_BTN_LB (1u << 4)
+#define GC_BTN_RB (1u << 5)
+#define GC_BTN_LT_DIG (1u << 6) /* digital LT press */
+#define GC_BTN_RT_DIG (1u << 7) /* digital RT press */
+#define GC_BTN_SELECT (1u << 8)
+#define GC_BTN_START (1u << 9)
+#define GC_BTN_L3 (1u << 10) /* left-stick click  */
+#define GC_BTN_R3 (1u << 11) /* right-stick click */
+#define GC_BTN_HOME (1u << 12)
+#define GC_BTN_SHARE (1u << 13)
+
 const static uint8_t DPADS_DIRECTIONS[3][3] = {
     {GAMEPAD_HAT_UP_LEFT, GAMEPAD_HAT_UP, GAMEPAD_HAT_UP_RIGHT},
     {GAMEPAD_HAT_LEFT, GAMEPAD_HAT_CENTERED, GAMEPAD_HAT_RIGHT},
