@@ -125,6 +125,7 @@ static const uint8_t hid_configuration_descriptor[] = {
 
 static volatile uint8_t g_enabled_gamepads_itfs = 0;
 static volatile uint8_t g_enabled_gamepads_keys = 0;
+static volatile uint8_t g_enabled_sounds_level = 1;
 
 /********* TinyUSB HID callbacks ***************/
 
@@ -364,7 +365,7 @@ void buzzer_task(void *param) {
   ledc_channel_config(&ledc_channel);
 
   while (1) {
-    uint32_t duty = buzzer_running ? 512 : 0;
+    uint32_t duty = buzzer_running && g_enabled_sounds_level > 0 ? 512 : 0;
     ledc_set_duty(ledc_channel.speed_mode, ledc_channel.channel, duty);
     ledc_update_duty(ledc_channel.speed_mode, ledc_channel.channel);
     vTaskDelay(pdMS_TO_TICKS(10)); // avoid busy wait
@@ -393,15 +394,16 @@ static TaskHandle_t startup_task_handle = NULL;
 
 void startup_info_task(void *param) {
   gpio_set_level(GPIO_CAPS_LED, false);
+  const uint8_t delay = 120 / g_enabled_gamepads_itfs;
 
   for (int i = 0; i < g_enabled_gamepads_itfs; i++) {
-    vTaskDelay(pdMS_TO_TICKS(250));
+    vTaskDelay(pdMS_TO_TICKS(delay));
     gpio_set_level(GPIO_CAPS_LED, true);
-    vTaskDelay(pdMS_TO_TICKS(250));
+    vTaskDelay(pdMS_TO_TICKS(delay));
     gpio_set_level(GPIO_CAPS_LED, false);
   }
 
-  vTaskDelay(pdMS_TO_TICKS(100));
+  vTaskDelay(pdMS_TO_TICKS(60));
   gpio_set_level(GPIO_CAPS_LED, caps_on);
 
   // IMPORTANT: terminate task properly
@@ -532,13 +534,13 @@ bool noKeyPressedPreviously = true;
 bool noKeyPressed = true;
 
 // my keys registration
-uint8_t _currentMyKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
-uint8_t _newMyKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
-uint8_t alreadyPressedMyKeys[NUMBER_OF_MYKEYS] = {0};
+uint8_t _currentFnKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
+uint8_t _newFnKeysContent[NUMBER_OF_SIMULT_KEYS] = {0};
+uint8_t alreadyPressedFnKeys[NUMBER_OF_FN_KEYS] = {0};
 
-uint8_t *currentMyKeys = _currentMyKeysContent;
-uint8_t *newMyKeys = _newMyKeysContent;
-uint8_t newMyKeysIndex = 0;
+uint8_t *currentFnKeys = _currentFnKeysContent;
+uint8_t *newFnKeys = _newFnKeysContent;
+uint8_t newFnKeysIndex = 0;
 // bool alreadyPressedNewKeysFull = false;
 // bool noKeyPressedPreviously = true;
 // bool noKeyPressed = true;
@@ -638,7 +640,7 @@ void normalKeyPressRegistration(uint8_t k) {
   // alreadyPressedKeys[currentKeys[2]], currentKeys[3],
   // alreadyPressedKeys[currentKeys[3]], currentKeys[4],
   // alreadyPressedKeys[currentKeys[4]]);
-  if (!alreadyPressed) {
+  if (!alreadyPressed && g_enabled_sounds_level >= 2) {
     ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, freqs[k % 72]);
     ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL, 512);
     ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_CHANNEL);
@@ -663,25 +665,6 @@ void normalKeyPressRegistration(uint8_t k) {
     }
   }
   alreadyPressedNewKeysFull = true;
-}
-
-void myKeysRegistration(uint8_t k) {
-  bool alreadyPressed = alreadyPressedMyKeys[k];
-
-  if (newMyKeysIndex < NUMBER_OF_SIMULT_KEYS) {
-    newMyKeys[newMyKeysIndex++] = k;
-    return;
-  }
-
-  if (!alreadyPressed)
-    return; // buffer already full, and not priorised, ignored
-
-  for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++) {
-    if (!alreadyPressedMyKeys[newMyKeys[i]]) {
-      newMyKeys[i] = k;
-      return;
-    }
-  }
 }
 
 void languageKeysRegistration(uint8_t k) { (void)k; }
@@ -726,6 +709,8 @@ void otherHidKeysRegistration(uint8_t k) {
     normalKeyPressRegistration(HID_KEY_VOLUME_DOWN);
     return;
   case M_HIDKEY_VOLUME_UP:
+    // if (currentMod )
+    // cfg_set_sounds_level
     normalKeyPressRegistration(HID_KEY_VOLUME_UP);
     return;
   case M_HIDKEY_FIND:
@@ -755,21 +740,31 @@ void otherHidKeysRegistration(uint8_t k) {
 }
 
 void fnKeyPressRegistration(uint8_t k) {
+  if (k >= NUMBER_OF_FN_KEYS) {
+    printf("FN KEY OUT OF RANGE!\n");
+    return;
+  }
+
   // Already pressed keys are priorised
   if (k == 0)
     return;
-  // my keyboard features
-  else if (k < 0x20)
-    myKeysRegistration(k);
-  // language key features
-  else if (k < 0x40)
-    languageKeysRegistration(k);
-  // HID Usage Table (consumer Page)
-  else if (k < 0x60)
-    hidUsageKeysRegistration(k);
-  // other HIDs
-  else
-    otherHidKeysRegistration(k);
+
+  bool alreadyPressed = alreadyPressedFnKeys[k];
+
+  if (newFnKeysIndex < NUMBER_OF_SIMULT_KEYS) {
+    newFnKeys[newFnKeysIndex++] = k;
+    return;
+  }
+
+  if (!alreadyPressed)
+    return; // buffer already full, and not priorised, ignored
+
+  for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++) {
+    if (!alreadyPressedFnKeys[newFnKeys[i]]) {
+      newFnKeys[i] = k;
+      return;
+    }
+  }
 }
 
 void gamepadPressRegistration(uint8_t pad, uint8_t k) {
@@ -877,44 +872,64 @@ void keyPressRegistration(uint8_t c, uint8_t r) {
   normalKeyPressRegistration(matrix[c][r]);
 }
 
-void mykeyUpdateRegistration(void) {
+void myKeysRegistration(uint8_t k, bool alreadyPressed) {
+  if (!alreadyPressed)
+    switch (k) {
+    case M_HIDMKY_FN_LOCK:
+      fnLocked = !fnLocked;
+      printf("Toggle FnLock\n");
+      break;
+    case M_HIDMK_GAMEPADS:
+      if (currentMod & KEYBOARD_MODIFIER_LEFTSHIFT)
+        cfg_toggle_gamepad_interfaces(g_enabled_gamepads_itfs);
+      else
+        g_enabled_gamepads_keys =
+            cfg_toggle_gamepad_keys(g_enabled_gamepads_keys);
+      break;
+    default:
+      break;
+    }
+}
+
+void fnKeyPreUpdateRegistration(uint8_t k, uint8_t alreadyPressed) {
+  if (k == 0)
+    return;
+  // my keyboard features
+  else if (k < 0x20)
+    myKeysRegistration(k, alreadyPressed);
+  // language key features
+  else if (k < 0x40)
+    languageKeysRegistration(k);
+  // HID Usage Table (consumer Page)
+  else if (k < 0x60)
+    hidUsageKeysRegistration(k);
+  // other HIDs
+  else
+    otherHidKeysRegistration(k);
+}
+
+void fnkeyUpdateRegistration(void) {
   for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++) {
-    uint8_t k = newMyKeys[i];
-    bool alreadyPressed = alreadyPressedMyKeys[k];
-    if (!alreadyPressed)
-      switch (k) {
-      case M_HIDMKY_FN_LOCK:
-        fnLocked = !fnLocked;
-        printf("Toggle FnLock\n");
-        break;
-      case M_HIDMK_GAMEPADS:
-        if (currentMod & KEYBOARD_MODIFIER_LEFTSHIFT)
-          cfg_toggle_gamepad_interfaces(g_enabled_gamepads_itfs);
-        else
-          g_enabled_gamepads_keys =
-              cfg_toggle_gamepad_keys(g_enabled_gamepads_keys);
-        break;
-      default:
-        break;
-      }
+    uint8_t k = newFnKeys[i];
+    fnKeyPreUpdateRegistration(k, alreadyPressedFnKeys[k]);
   }
   for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++) {
     // printf("- a[%d=c[%d]]=%d ", currentMyKeys[i], i,
     // alreadyPressedMyKeys[currentMyKeys[i]]);
-    alreadyPressedMyKeys[currentMyKeys[i]] = 0;
+    alreadyPressedFnKeys[currentFnKeys[i]] = 0;
     // NOTE: improve it to only disable when we really need to disable them just
     // like in keyUpdateRegistration
   }
-  uint8_t *tmp = currentMyKeys;
-  currentMyKeys = newMyKeys;
-  newMyKeys = tmp;
-  memset(newMyKeys, 0, NUMBER_OF_SIMULT_KEYS);
+  uint8_t *tmp = currentFnKeys;
+  currentFnKeys = newFnKeys;
+  newFnKeys = tmp;
+  memset(newFnKeys, 0, NUMBER_OF_SIMULT_KEYS);
 
-  newMyKeysIndex = 0;
+  newFnKeysIndex = 0;
 
   for (uint8_t i = 0; i < NUMBER_OF_SIMULT_KEYS; i++) {
-    if (currentMyKeys[i] > 0)
-      alreadyPressedMyKeys[currentMyKeys[i]] = 1;
+    if (currentFnKeys[i] > 0)
+      alreadyPressedFnKeys[currentFnKeys[i]] = 1;
   }
   // printf("-> 0\n");
 }
@@ -959,7 +974,7 @@ void keyUpdateRegistration(void) {
   fnPressed = fnNewPressed;
   memset(newKeys, 0, NUMBER_OF_SIMULT_KEYS);
 
-  mykeyUpdateRegistration();
+  fnkeyUpdateRegistration();
 
   gamepadUpdateRegistration();
 
@@ -1064,11 +1079,9 @@ void app_main(void) {
   }
   ESP_ERROR_CHECK(ret);
 
-  /* 2 ── Read config BEFORE tinyusb_driver_install() because
-   *      tud_hid_descriptor_report_cb fires during enumeration,
-   *      which starts inside that call. */
   g_enabled_gamepads_itfs = cfg_read_enabled_gamepads();
   g_enabled_gamepads_keys = cfg_read_enabled_gamepads_keys();
+  g_enabled_sounds_level = cfg_get_sounds_level();
   ESP_LOGI(TAG, "Config: enabled_gamepads_interfaces=%d (active: %d)",
            g_enabled_gamepads_itfs, g_enabled_gamepads_keys);
 
