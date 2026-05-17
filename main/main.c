@@ -667,7 +667,7 @@ void normalKeyPressRegistration(uint8_t k) {
   alreadyPressedNewKeysFull = true;
 }
 
-void languageKeysRegistration(uint8_t k) { (void)k; }
+void languageKeysRegistration(uint8_t k, bool alreadyPressed) { (void)k; }
 
 void usageRegistration(uint16_t usage) {
   consumerBuffer[0] = (uint8_t)(usage & 0xFF);
@@ -675,7 +675,7 @@ void usageRegistration(uint16_t usage) {
   noConsumerPressed = false;
 }
 
-void hidUsageKeysRegistration(uint8_t k) {
+void hidUsageKeysRegistration(uint8_t k, bool alreadyPressed) {
   switch (k) {
   case M_HIDUC_SCAN_PREVIOUS:
     usageRegistration(HID_USAGE_CONSUMER_SCAN_PREVIOUS_TRACK);
@@ -700,18 +700,25 @@ void hidUsageKeysRegistration(uint8_t k) {
   }
 }
 
-void otherHidKeysRegistration(uint8_t k) {
+void otherHidKeysRegistration(uint8_t k, bool alreadyPressed) {
   switch (k) {
   case M_HIDKEY_MUTE:
-    normalKeyPressRegistration(HID_KEY_MUTE);
+    if (currentMod == 0)
+      normalKeyPressRegistration(HID_KEY_MUTE);
+    else if (currentMod & KEYBOARD_MODIFIER_LEFTSHIFT && !alreadyPressed)
+      g_enabled_sounds_level = cfg_set_sounds_level(0);
     return;
   case M_HIDKEY_VOLUME_DOWN:
-    normalKeyPressRegistration(HID_KEY_VOLUME_DOWN);
+    if (currentMod == 0)
+      normalKeyPressRegistration(HID_KEY_VOLUME_DOWN);
+    else if (currentMod & KEYBOARD_MODIFIER_LEFTSHIFT && !alreadyPressed)
+      g_enabled_sounds_level = cfg_set_sounds_level(1);
     return;
   case M_HIDKEY_VOLUME_UP:
-    // if (currentMod )
-    // cfg_set_sounds_level
-    normalKeyPressRegistration(HID_KEY_VOLUME_UP);
+    if (currentMod == 0)
+      normalKeyPressRegistration(HID_KEY_VOLUME_UP);
+    else if (currentMod & KEYBOARD_MODIFIER_LEFTSHIFT && !alreadyPressed)
+      g_enabled_sounds_level = cfg_set_sounds_level(2);
     return;
   case M_HIDKEY_FIND:
     normalKeyPressRegistration(HID_KEY_FIND);
@@ -899,13 +906,13 @@ void fnKeyPreUpdateRegistration(uint8_t k, uint8_t alreadyPressed) {
     myKeysRegistration(k, alreadyPressed);
   // language key features
   else if (k < 0x40)
-    languageKeysRegistration(k);
+    languageKeysRegistration(k, alreadyPressed);
   // HID Usage Table (consumer Page)
   else if (k < 0x60)
-    hidUsageKeysRegistration(k);
+    hidUsageKeysRegistration(k, alreadyPressed);
   // other HIDs
   else
-    otherHidKeysRegistration(k);
+    otherHidKeysRegistration(k, alreadyPressed);
 }
 
 void fnkeyUpdateRegistration(void) {

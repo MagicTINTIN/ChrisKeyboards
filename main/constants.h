@@ -27,6 +27,8 @@
 #define NVS_NAMESPACE "ctrl_cfg"
 #define NVS_KEY_GAMEPAD_ITFS "gp_itfs" // gamepads interfaces enable
 #define NVS_KEY_GAMEPAD "gp_en"        // gamepads enable
+#define NVS_KEY_SOUNDS_LEVEL "sound_lvl" // level of enabled sounds // 0=none, 1=ony usefull, 2=all
+#define NVS_KEY_SOUNDS_MUTE "sound_mute" // bypass sounds level to mute
 
 ////////////////////////////////
 // MATRIX SPECS
@@ -60,6 +62,10 @@
 #define M_HIDMK_BACKLIGHT 0x2
 #define M_HIDMK_GAMEPADS 0x3
 
+// #define M_HIDMK_SOUNDS_MUTE 0x4
+// #define M_HIDMK_SOUNDS_SOME 0x5
+// #define M_HIDMK_SOUNDS_ALL 0x6
+
 // LANGUAGES
 #define M_HIDMK_MORSE 0x20
 #define M_HIDMK_HEXA 0x21
@@ -84,6 +90,8 @@
 #define M_HIDKEY_ARROW_PAGE_UP 0X67
 #define M_HIDKEY_ARROW_BEGIN 0X68
 #define M_HIDKEY_ARROW_END 0X69
+
+#define NUMBER_OF_FN_KEYS 128
 
 ////////////////////////////////
 // GAMEPADS KEYS

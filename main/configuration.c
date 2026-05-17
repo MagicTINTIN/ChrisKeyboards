@@ -61,3 +61,27 @@ uint8_t cfg_read_enabled_gamepads_keys(void) {
   // ERR_NVS_NOT_FOUND defaults to 0
   return val;
 }
+
+
+uint8_t cfg_set_sounds_level(uint8_t lvl) {
+  nvs_handle_t h;
+
+  ESP_ERROR_CHECK(nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h));
+  ESP_ERROR_CHECK(nvs_set_u8(h, NVS_KEY_SOUNDS_LEVEL, lvl));
+  ESP_ERROR_CHECK(nvs_commit(h));
+  nvs_close(h);
+  return lvl;
+}
+
+uint8_t cfg_read_sounds_level(void) {
+  nvs_handle_t h;
+  uint8_t val = 1; // by default, sounds level is 1
+
+  esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READONLY, &h);
+  if (err == ESP_OK) {
+    nvs_get_u8(h, NVS_KEY_SOUNDS_LEVEL, &val); // ignore ERR_NOT_FOUND
+    nvs_close(h);
+  }
+  // ERR_NVS_NOT_FOUND defaults to 0
+  return val;
+}
